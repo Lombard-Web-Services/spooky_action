@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 simulateur.py - Simulateur numérique pour le framework de linguistique quantique
-Équations de Lindblad - Version corrigée
+Équations de Lindblad
 """
 
 import numpy as np
