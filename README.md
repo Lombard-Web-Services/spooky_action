@@ -10,7 +10,7 @@ Complete** Ce travail, connu sous le nom de paradoxe EPR, questionne la complét
 Le paradoxe EPR repose sur l'intrication quantique : deux particules peuvent être corrélées de telle sorte que la mesure d'une propriété de l'une détermine instantanément la propriété de l'autre, quelle que soit la distance qui les sépare. Pour Einstein, cela violait le principe de réalisme local : une propriété physique doit avoir une valeur définie indépendamment de l'observation, et aucune influence ne peut se propager plus vite que la lumière.
 
 ## Du Paradoxe au Traitement du Langage Naturel Quantique
-La mécanique quantique au XXe siècle a conduit à des applications bien au-delà de la physique des particules. Aujourd'hui, le Traitement Automatique du Langage Naturel Quantique (QNLP) émerge comme un domaine Le développement de la interdisciplinaire qui applique les formalismes quantiques à la modélisation du langage.
+La mécanique quantique au XXe siècle a conduit à des applications bien au-delà de la physique des particules. Aujourd'hui, le Traitement Automatique du Langage Naturel Quantique (QNLP) émerge comme un domaine de développement interdisciplinaire qui applique les formalismes quantiques à la modélisation du langage.
 
 ### Espaces de Hilbert sémantiques : Les mots sont représentés comme des vecteurs dans des espaces de Hilbert.
 ### Intrication sémantique : Les corrélations entre mots dans une phrase sont modélisées comme des états intriqués. 
