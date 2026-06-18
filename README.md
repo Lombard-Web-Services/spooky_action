@@ -5,7 +5,8 @@ Complete** Ce travail, connu sous le nom de paradoxe EPR, questionne la complét
 
 ```bash La mécanique quantique force le respect. Mais une voix intérieure me dit que ce n'est pas encore la juste vérité. En tout cas, je suis convaincu que Dieu ne joue pas aux dés.
 
-Albert Einstein, lettre à Max Born (1926)```
+Albert Einstein, lettre à Max Born (1926)
+```
 
 Le paradoxe EPR repose sur l'intrication quantique : deux particules peuvent être corrélées de telle sorte que la mesure d'une propriété de l'une détermine instantanément la propriété de l'autre, quelle que soit la distance qui les sépare. Pour Einstein, cela violait le principe de réalisme local : une propriété physique doit avoir une valeur définie indépendamment de l'observation, et aucune inuence ne peut se propager plus vite que la lumière.
 
