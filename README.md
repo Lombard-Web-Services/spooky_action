@@ -21,7 +21,13 @@ Au cours des dernières décennies, les formalismes mathématiques issus de la m
 Le **Quantum Natural Language Processing (QNLP)** explore l'utilisation de concepts tels que :
 
 * les espaces de Hilbert pour représenter les significations linguistiques ;
-* les produits tensoriels pour composer les structures grammaticales ;
+* les produits tensoriels pour composer les structures grammaticales ;a mémoire, le RAG, les outils et les interactions utilisateur jouent le rôle des opérateurs dissipatifs 
+𝐷
+𝑘
+. C'est à ce niveau que l'analogie devient réellement intéressante.
+
+Pourquoi cette analogie est pertinente
+Décohérence cognitive : L'accumulation de contexte et d'interactions tend à "effondrer" l'état de raisonnement vers des solutions déterminées, comme la décohérence effondre les superpositions 
 * les superpositions d'états pour modéliser l'ambiguïté sémantique ;
 * les corrélations quantiques pour représenter les dépendances contextuelles complexes.
 
@@ -107,7 +113,7 @@ En poussant l'analogie, le LLM joue le rôle du **Hamiltonien effectif** $H$, ta
 
 3. **Couplage avec l'environnement** : L'agent LLM n'est pas un système isolé ; il interagit constamment avec des outils, une base de données et un utilisateur.
 
-4. **Caractère non-unitair** : La dynamique de l'agent n'est pas réversible, comme celle d'un système quantique ouvert décrit par Lindblad.
+4. **Caractère non-unitaire** : La dynamique de l'agent n'est pas réversible, comme celle d'un système quantique ouvert décrit par Lindblad.
 
 ---
 
