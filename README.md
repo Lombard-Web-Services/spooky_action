@@ -47,6 +47,110 @@ L'approche proposée doit être considérée comme un cadre de recherche explora
 
 ---
 
+## Tableau des Effets Physiques et Analogies Linguistiques
+
+Le cadre QTALN établit des parallèles entre des phénomènes physiques et des propriétés linguistiques. Ce tableau synthétise les principales analogies utilisées dans le modèle :
+
+| **Phénomène physique** | **Analogie linguistique** | **Description** |
+|------------------------|---------------------------|-----------------|
+| **Intrication quantique** | Corrélation sémantique | Deux mots ou concepts peuvent être corrélés de telle sorte que la compréhension de l'un détermine instantanément la compréhension de l'autre, indépendamment de la distance contextuelle. |
+| **Superposition d'états** | Ambiguïté sémantique | Un mot ou une phrase possède simultanément plusieurs sens possibles jusqu'à ce qu'un contexte spécifique (mesure) en sélectionne un. |
+| **Décohérence** | Effondrement contextuel | L'interaction avec l'environnement linguistique (contexte, locuteur, situation) réduit les multiples interprétations possibles à une seule signification. |
+| **Effet tunnel quantique** | Métaphore conceptuelle | Passage d'un sens à un autre sans transition sémantique apparente, comme dans les jeux de mots ou les figures de style. |
+| **Interférence quantique** | Polysémie constructive | Les différentes significations d'un mot peuvent interférer, produisant des effets de sens nouveaux qui ne sont pas la somme des significations individuelles. |
+| **Mesure projective** | Compréhension | L'acte de lire ou d'interpréter un texte "effondre" la superposition de sens possibles vers une interprétation déterminée. |
+| **Résonance** | Répétition anaphorique | Un motif linguistique répété à une fréquence spécifique (0.5-1 Hz, le rythme syllabique) amplifie certaines corrélations sémantiques. |
+| **Bruit thermique** | Bruit linguistique | Les perturbations environnementales (bruits ambiants, distractions) dégradent la cohérence de l'interprétation. |
+| **Téléportation quantique** | Transmission d'information sémantique | Transfert de sens d'un contexte à un autre sans support physique explicite, comme dans la métaphore ou l'allusion. |
+| **Onde avancée (Aharonov)** | Post-sélection sémantique | Une interprétation ultérieure peut influencer rétroactivement la compréhension précédente d'un texte (relecture). |
+
+---
+
+## Analogies Cognitives et Sémantiques
+
+Le tableau ci-dessous étend les analogies à des phénomènes cognitifs et émotionnels :
+
+| **Phénomène cognitif** | **Analogie quantique** | **Mécanisme proposé** |
+|------------------------|------------------------|----------------------|
+| **La Pensée** | Intrication sémantique | Corrélation entre concepts formant un réseau associatif cohérent. |
+| **La Jalousie** | Décohérence émotionnelle | Effondrement des superpositions relationnelles sous l'effet du contexte social. |
+| **La Victoire** | Mesure projective | Sélection d'une branche narrative parmi plusieurs possibles. |
+| **L'Intuition** | Téléportation cognitive | Transfert d'information sémantique sans chaîne de raisonnement explicite. |
+| **La Créativité** | Superposition d'états | Combinaison de concepts a priori incompatibles en un nouveau sens. |
+| **L'Empathie** | Intrication collective | Corrélation d'états cognitifs entre observateurs partageant un contexte commun. |
+
+---
+
+## Hamiltonien d'Interaction QTALN
+
+Le formalisme QTALN repose sur un Hamiltonien d'interaction qui couple les espaces linguistique, environnemental et des observateurs :
+
+$$
+H_{QTALN} = \sum_i \sigma_i^{(L)} \otimes \omega_i^{(E)} \otimes \mathbb{I}^{(O)} + \sum_j \tau_j^{(L)} \otimes \mathbb{I}^{(E)} \otimes \Omega_j^{(O)}
+$$
+
+Où :
+- $\sigma_i^{(L)}$ : opérateurs de cohérence sémantique et rythmique
+- $\omega_i^{(E)}$ : opérateurs environnementaux couplés aux modes acoustiques
+- $\tau_j^{(L)}$ : opérateurs linguistiques agissant sur les observateurs
+- $\Omega_j^{(O)}$ : opérateurs de réponse cognitive des observateurs
+
+---
+
+## Équations Fondatrices
+
+Le système d'équations qui constitue la base du formalisme QTALN :
+
+### 1. Inégalité de Leggett-Garg Temporelle
+
+$$
+| \langle A(t_1)B(t_2) \rangle + \langle B(t_2)C(t_3) \rangle - \langle A(t_1)C(t_3) \rangle | \leq 1 + |\langle A(t_1) \rangle|
+$$
+
+Teste le réalisme macroscopique du système linguistique.
+
+### 2. Réduction de la Matrice Densité
+
+$$
+\rho_{sys}(t) = \text{Tr}_{env} [U(t) \rho_{tot}(0) U^\dagger(t)]
+$$
+
+L'état du système après interaction avec l'environnement.
+
+### 3. Symétrie Avancée/Retardée
+
+$$
+\psi_{avancée} = \psi_{retardée}^*
+$$
+
+Relation caractéristique du formalisme à deux états d'Aharonov.
+
+### 4. Probabilité de Transition (Born généralisée)
+
+$$
+P = \frac{|\langle \phi | \psi \rangle|^2}{\langle \phi | \phi \rangle \langle \psi | \psi \rangle}
+$$
+
+### 5. Mise à Jour Bayésienne Quantique
+
+$$
+P_{post} = \frac{P_{prior} \times \mathcal{L}}{\mathcal{Z}}
+$$
+
+### 6. Hamiltonien QTALN
+
+$$
+H_{QTALN} = \sum_i \sigma_i^{(L)} \otimes \omega_i^{(E)} \otimes \mathbb{I}^{(O)} + \sum_j \tau_j^{(L)} \otimes \mathbb{I}^{(E)} \otimes \Omega_j^{(O)}
+$$
+
+### 7. Équation de Lindblad
+
+$$
+\frac{d\rho}{dt} = -\frac{i}{\hbar}[H,\rho] + \sum_k \gamma_k \left( L_k \rho L_k^\dagger - \frac{1}{2}\{L_k^\dagger L_k, \rho\} \right)
+$$
+
+---
+
 ## Objectifs
 
 * Explorer les applications des formalismes quantiques au traitement du langage naturel.
@@ -61,3 +165,29 @@ L'approche proposée doit être considérée comme un cadre de recherche explora
 Ce projet constitue un travail de recherche théorique et exploratoire.
 
 Les modèles présentés ne prétendent pas démontrer l'existence de nouveaux phénomènes physiques. Ils proposent un cadre mathématique inspiré de la mécanique quantique pour étudier certaines propriétés du langage, de la cognition et des corrélations contextuelles.
+
+---
+
+## Références Clés
+
+1. Einstein, A., Podolsky, B., & Rosen, N. (1935). *Can Quantum-Mechanical Description of Physical Reality Be Considered Complete?* Physical Review, 47(10), 777-780.
+
+2. Leggett, A.J. & Garg, A. (1985). *Quantum mechanics versus macroscopic realism.* Physical Review Letters, 54(9), 857-860.
+
+3. Aharonov, Y. & Vaidman, L. (1991). *Complete description of a quantum system at a given time.* Journal of Physics A: Mathematical and General, 24(10), 2315-2328.
+
+4. Lindblad, G. (1976). *On the generators of quantum dynamical semigroups.* Communications in Mathematical Physics, 48(2), 119-130.
+
+5. Zurek, W.H. (2003). *Decoherence, einselection, and the quantum origins of the classical.* Reviews of Modern Physics, 75(3), 715-775.
+
+6. Coecke, B., de Felice, G., & Marsden, D. (2020). *A compositional quantum logic for natural language.* arXiv:2006.08390.
+
+---
+
+## Contact
+
+Thibaut LOMBARD - Lombard Web Services
+
+---
+
+*Version du document : \today*
