@@ -246,19 +246,11 @@ Les modèles présentés ne prétendent pas démontrer l'existence de nouveaux p
 
 3. Aharonov, Y. & Vaidman, L. (1991). *Complete description of a quantum system at a given time.* Journal of Physics A: Mathematical and General, 24(10), 2315-2328.
 
----
+4. Lindblad, G. (1976). *On the generators of quantum dynamical semigroups.* Communications in Mathematical Physics, 48(2), 119-130.
 
-## License
+5. Zurek, W.H. (2003). *Decoherence, einselection, and the quantum origins of the classical.* Reviews of Modern Physics, 75(3), 715-775.
 
-This work is licensed under a [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/).
-
-© 2026 Thibaut Lombard - Lombard Web Services
-
-5. Lindblad, G. (1976). *On the generators of quantum dynamical semigroups.* Communications in Mathematical Physics, 48(2), 119-130.
-
-6. Zurek, W.H. (2003). *Decoherence, einselection, and the quantum origins of the classical.* Reviews of Modern Physics, 75(3), 715-775.
-
-7. Coecke, B., de Felice, G., & Marsden, D. (2020). *A compositional quantum logic for natural language.* arXiv:2006.08390.
+6. Coecke, B., de Felice, G., & Marsden, D. (2020). *A compositional quantum logic for natural language.* arXiv:2006.08390.
 
 ---
 
@@ -268,4 +260,8 @@ Thibaut LOMBARD - Lombard Web Services
 
 ---
 
-*Version du document : \today*
+## License
+
+This work is licensed under a [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/).
+
+© 2026 Thibaut Lombard - Lombard Web Services
