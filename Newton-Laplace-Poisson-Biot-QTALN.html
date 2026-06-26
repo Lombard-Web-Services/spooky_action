@@ -1,0 +1,1646 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QTALN · FDTD Thermoacoustique 3D | Lombard Web Services</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #0a0f1a; font-family: 'Inter', sans-serif; color: #f8fafc; width: 100vw; height: 100vh; }
+        #canvas-container { position: fixed; inset: 0; z-index: 1; }
+        #canvas-container canvas { display: block; }
+
+        .panel {
+            position: absolute;
+            background: rgba(10, 15, 26, 0.88);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(148, 163, 184, 0.08);
+            border-radius: 12px;
+            padding: 12px 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            z-index: 10;
+            transition: all 0.3s ease;
+            font-size: 11px;
+        }
+        .panel:hover { border-color: rgba(148, 163, 184, 0.2); }
+
+        #info-panel { top: 16px; left: 16px; max-width: 300px; }
+        #info-panel .title { font-size: 15px; font-weight: 700; font-family: 'Playfair Display', serif; }
+        #info-panel .subtitle { font-size: 9px; color: #0ea5e9; text-transform: uppercase; letter-spacing: 0.08em; }
+        #info-panel .equation { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: rgba(14,165,233,0.06); padding: 5px 8px; border-radius: 5px; margin: 5px 0; text-align: center; border: 1px solid rgba(14,165,233,0.08); }
+        .val-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px 8px; margin-top: 3px; }
+        .val-grid .label { color: #64748b; font-size: 9px; }
+        .val-grid .value { font-family: 'JetBrains Mono', monospace; font-size: 9px; text-align: right; font-weight: 600; }
+        .val-grid .value.highlight { color: #f59e0b; }
+        .legend { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(148,163,184,0.06); }
+        .legend span { display: flex; align-items: center; gap: 3px; font-size: 7px; color: #94a3b8; }
+        .legend .dot { width: 5px; height: 5px; border-radius: 50%; }
+
+        #audio-panel { top: 16px; right: 16px; min-width: 140px; }
+        #audio-panel .title { font-size: 9px; font-weight: 700; color: #a855f7; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+        .file-btn { position: relative; display: block; width: 100%; margin-bottom: 4px; overflow: hidden; }
+        .file-btn input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; z-index: 2; }
+        .file-btn label { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 5px 8px; background: linear-gradient(135deg, #6366f1, #a855f7); border-radius: 5px; font-size: 9px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: none; color: white; }
+        .file-btn label:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(99,102,241,0.3); }
+        .btn-row { display: flex; gap: 3px; margin-bottom: 3px; }
+        .btn-row button { flex: 1; padding: 4px 5px; border: none; border-radius: 4px; font-size: 9px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 3px; }
+        .btn-primary { background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white; }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(14,165,233,0.3); }
+        .btn-secondary { background: rgba(148,163,184,0.12); color: #94a3b8; border: 1px solid rgba(148,163,184,0.06); }
+        .btn-secondary:hover:not(:disabled) { background: rgba(148,163,184,0.2); color: #f8fafc; }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+        .btn-mode { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.2); padding: 4px 8px; border-radius: 4px; font-size: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.05em; }
+        .btn-mode.active { background: rgba(16,185,129,0.25); border-color: #10b981; box-shadow: 0 0 20px rgba(16,185,129,0.1); }
+        .btn-mode:hover { transform: scale(1.02); }
+        .audio-status { font-size: 8px; color: #64748b; text-align: center; min-height: 12px; }
+        .audio-status.playing { color: #10b981; }
+        .audio-status.loaded { color: #fbbf24; }
+        .audio-status.error { color: #ef4444; }
+        .audio-time { font-family: 'JetBrains Mono', monospace; font-size: 8px; color: #94a3b8; text-align: center; margin: 1px 0; }
+        .spectrum-bars { display: flex; gap: 1.5px; height: 20px; align-items: flex-end; margin-top: 2px; }
+        .spectrum-bar { flex: 1; background: linear-gradient(to top, #0ea5e9, #a855f7); border-radius: 1px; min-height: 2px; transition: height 0.03s ease-out; }
+
+        #peda-panel { bottom: 76px; left: 16px; min-width: 140px; padding: 8px 12px; }
+        #peda-panel .title { font-size: 8px; font-weight: 700; color: #f59e0b; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; }
+        .peda-row { display: flex; justify-content: space-between; padding: 1px 0; font-size: 8px; }
+        .peda-row .label { color: #64748b; }
+        .peda-row .value { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+        .peda-row .value.freq { color: #a855f7; }
+        .peda-row .value.speed { color: #10b981; }
+        .meter-track { width: 100%; height: 3px; background: rgba(148,163,184,0.06); border-radius: 2px; overflow: hidden; margin: 2px 0; }
+        .meter-fill { height: 100%; background: linear-gradient(90deg, #fbbf24, #f59e0b, #ef4444); border-radius: 2px; transition: width 0.05s ease-out; }
+        .wave-status { font-size: 7px; color: #64748b; text-align: center; padding: 2px 0; margin-top: 2px; border-radius: 3px; background: rgba(148,163,184,0.04); }
+        .wave-status.playing { color: #10b981; background: rgba(16,185,129,0.06); }
+
+        #controls-panel {
+            position: fixed;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            background: rgba(10, 15, 26, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: 16px;
+            padding: 12px 24px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+            min-height: 58px;
+            pointer-events: all;
+        }
+        #controls-panel .ctrl-group { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+        #controls-panel .ctrl-group label { font-size: 6px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; }
+        #controls-panel .ctrl-wrap { display: flex; align-items: center; gap: 4px; }
+        #controls-panel .ctrl-wrap input[type="range"] { width: 50px; height: 3px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, rgba(14,165,233,0.2), #0ea5e9); border-radius: 2px; outline: none; cursor: pointer; }
+        #controls-panel .ctrl-wrap input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: linear-gradient(135deg, #0ea5e9, #6366f1); cursor: pointer; border: 2px solid #0a0f1a; box-shadow: 0 2px 6px rgba(14,165,233,0.3); }
+        #controls-panel .ctrl-value { font-family: 'JetBrains Mono', monospace; font-size: 8px; font-weight: 600; color: #0ea5e9; background: rgba(14,165,233,0.08); padding: 1px 4px; border-radius: 3px; min-width: 28px; text-align: center; }
+
+        #wave-graph { bottom: 76px; right: 16px; padding: 8px 10px; min-width: 150px; }
+        #wave-graph .title { font-size: 7px; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px; }
+        #wave-graph canvas { width: 100%; height: 40px; border-radius: 3px; background: rgba(0,0,0,0.3); }
+        .graph-legend { display: flex; gap: 6px; margin-top: 2px; font-size: 6px; color: #64748b; }
+        .graph-legend span { display: flex; align-items: center; gap: 2px; }
+
+        #signature { position: fixed; bottom: 10px; right: 14px; z-index: 25; display: flex; align-items: center; gap: 5px; padding: 3px 8px; background: rgba(10,15,26,0.6); backdrop-filter: blur(8px); border: 1px solid rgba(148,163,184,0.04); border-radius: 10px; font-size: 7px; color: #64748b; }
+        #signature .logo { width: 12px; height: 12px; border-radius: 3px; background: linear-gradient(135deg, #0ea5e9, #6366f1); display: flex; align-items: center; justify-content: center; font-size: 7px; font-weight: 700; color: white; }
+
+        .mode-toggle { display: flex; gap: 4px; align-items: center; background: rgba(148,163,184,0.04); padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(148,163,184,0.06); }
+        .mode-toggle .mode-label { font-size: 6px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        @media (max-width: 900px) {
+            #info-panel { max-width: 160px; padding: 8px 10px; }
+            #audio-panel { min-width: 100px; padding: 8px 10px; }
+            #peda-panel { display: none; }
+            #wave-graph { display: none; }
+            #controls-panel { gap: 8px; padding: 8px 12px; width: 94%; }
+            #controls-panel .ctrl-wrap input[type="range"] { width: 35px; }
+            .mode-toggle .mode-label { font-size: 5px; }
+        }
+        @media (max-width: 600px) {
+            #info-panel { max-width: 120px; top: 6px; left: 6px; font-size: 8px; padding: 6px 8px; }
+            #audio-panel { top: 6px; right: 6px; min-width: 80px; padding: 6px 8px; }
+            #controls-panel { bottom: 6px; gap: 4px; padding: 4px 8px; width: 96%; }
+            #controls-panel .ctrl-wrap input[type="range"] { width: 25px; }
+            #signature { display: none; }
+            .mode-toggle .mode-label { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div id="info-panel" class="panel">
+        <div class="title">Vitesse du Son</div>
+        <div class="subtitle">Newton · Laplace · Poisson · Biot · QTALN</div>
+        <div class="equation">v = √(g·h·δ/d) · √(1+α·t) · (c/c′)</div>
+        <div class="val-grid">
+            <span class="label">v₀</span><span class="value" id="v0-display">331.50 m/s</span>
+            <span class="label">v(t)</span><span class="value highlight" id="vt-display">— m/s</span>
+            <span class="label">γ = c/c′</span><span class="value" id="gamma-display">1.402</span>
+            <span class="label">T</span><span class="value" id="temp-display">20°C</span>
+        </div>
+        <div class="legend">
+            <span><span class="dot" style="background:#fbbf24;"></span> Molécules</span>
+            <span><span class="dot" style="background:#0ea5e9;"></span> Sources</span>
+            <span><span class="dot" style="background:#00d4ff;"></span> Front d'onde</span>
+            <span><span class="dot" style="background:#f59e0b;"></span> Compression</span>
+            <span><span class="dot" style="background:#a855f7;"></span> Raréfaction</span>
+            <span><span class="dot" style="background:#10b981;"></span> Déplacement</span>
+        </div>
+    </div>
+
+    <div id="audio-panel" class="panel">
+        <div class="title">🎛 Audio</div>
+        <div class="file-btn">
+            <input type="file" id="audio-file" accept="audio/mpeg,audio/wav,audio/ogg,audio/mp3,audio/aac" />
+            <label for="audio-file">📁 Charger</label>
+        </div>
+        <div class="btn-row">
+            <button id="play-btn" class="btn btn-primary" disabled>▶</button>
+            <button id="pause-btn" class="btn btn-secondary" disabled>⏸</button>
+            <button id="stop-btn" class="btn btn-secondary" disabled>⏹</button>
+        </div>
+        <div class="audio-status" id="audio-status">Aucun fichier</div>
+        <div class="audio-time" id="audio-time">00:00 / 00:00</div>
+        <div class="spectrum-bars" id="spectrum-bars"></div>
+    </div>
+
+    <div id="peda-panel" class="panel">
+        <div class="title">📊 Analyse</div>
+        <div class="peda-row"><span class="label">Température</span><span class="value" id="pedal-temp">20 °C</span></div>
+        <div class="peda-row"><span class="label">Fréq. dominante</span><span class="value freq" id="pedal-freq">— Hz</span></div>
+        <div class="peda-row"><span class="label">Vitesse du son</span><span class="value speed" id="pedal-speed">343 m/s</span></div>
+        <div class="meter-track"><div class="meter-fill" id="rms-bar" style="width:2%"></div></div>
+        <div class="peda-row" style="margin-top:2px;"><span class="label">Déplacement mol.</span><span class="value" id="pedal-disp">~10 pm</span></div>
+        <div class="wave-status" id="wave-status">⏸ En attente</div>
+    </div>
+
+    <div id="wave-graph" class="panel">
+        <div class="title">Onde de pression (2D)</div>
+        <canvas id="wave-canvas" width="180" height="40"></canvas>
+        <div class="graph-legend">
+            <span><span class="dot" style="background:#f59e0b;"></span> +</span>
+            <span><span class="dot" style="background:#a855f7;"></span> −</span>
+        </div>
+    </div>
+
+    <div id="controls-panel">
+        <div class="ctrl-group">
+            <label>Température</label>
+            <div class="ctrl-wrap">
+                <input type="range" id="temp-slider" min="-30" max="60" value="20" step="0.5" />
+                <span class="ctrl-value" id="temp-value">20°C</span>
+            </div>
+        </div>
+        <div class="ctrl-group">
+            <label>γ</label>
+            <div class="ctrl-wrap">
+                <input type="range" id="gamma-slider" min="1.0" max="1.7" value="1.402" step="0.001" />
+                <span class="ctrl-value" id="gamma-value">1.402</span>
+            </div>
+        </div>
+        <div class="ctrl-group">
+            <label>Sensibilité</label>
+            <div class="ctrl-wrap">
+                <input type="range" id="sens-slider" min="0.1" max="3.0" value="1.5" step="0.1" />
+                <span class="ctrl-value" id="sens-value">1.5</span>
+            </div>
+        </div>
+        <div class="mode-toggle">
+            <span class="mode-label">Mode</span>
+            <button id="mode-btn" class="btn-mode active">🎯 Pédagogique</button>
+        </div>
+    </div>
+
+    <div id="signature">
+        <div class="logo">L</div>
+        <span>Lombard Web Services — FDTD Thermoacoustique</span>
+    </div>
+
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        console.log('🚀 Initialisation QTALN FDTD v2.0 — Physique fondée...');
+
+        // ═══════════════════════════════════════════════════════
+        // MODES
+        // ═══════════════════════════════════════════════════════
+        const MODES = {
+            PEDAGOGIQUE: {
+                label: '🎯 Pédagogique',
+                moleculeScale: 10,
+                displacementScale: 30,
+                waveScale: 2.0,
+                sourceScale: 4,
+                compressionScale: 5.0,
+                arrowScale: 0.15,
+                maxFFT: 3,
+                waveSpawnThreshold: 0.015,
+                sourcePulse: 0.9,
+                showVectors: true,
+                showCompression: true,
+                moleculeCount: 250,
+                sourceRadius: 4.5,
+                moleculeSpread: 7.0,
+                sourceSize: 0.4,
+                molSize: 0.08,
+                waveBase: 0.3,
+                waveGrowth: 2.5,
+                compSize: 0.6,
+                rareSize: 0.4,
+                waveOpacity: 0.4,
+                compOpacity: 0.25,
+                rareOpacity: 0.20,
+            },
+            REALISTE: {
+                label: '🔬 Réaliste',
+                moleculeScale: 1,
+                displacementScale: 1,
+                waveScale: 0.3,
+                sourceScale: 1,
+                compressionScale: 1.5,
+                arrowScale: 0.02,
+                maxFFT: 8,
+                waveSpawnThreshold: 0.08,
+                sourcePulse: 0.2,
+                showVectors: false,
+                showCompression: false,
+                moleculeCount: 500,
+                sourceRadius: 1.8,
+                moleculeSpread: 3.0,
+                sourceSize: 0.15,
+                molSize: 0.025,
+                waveBase: 0.06,
+                waveGrowth: 0.3,
+                compSize: 0.18,
+                rareSize: 0.12,
+                waveOpacity: 0.18,
+                compOpacity: 0.10,
+                rareOpacity: 0.08,
+            }
+        };
+
+        let currentMode = 'PEDAGOGIQUE';
+        let modeConfig = MODES.PEDAGOGIQUE;
+
+        // ═══════════════════════════════════════════════════════
+        // CONSTANTES PHYSIQUES (Newton-Laplace-Poisson-Biot)
+        // ═══════════════════════════════════════════════════════
+        const G = 9.80665, H = 0.76, DENSITY_MERCURY = 13595, DENSITY_AIR_0 = 1.293, ALPHA = 1 / 273.15;
+        const BASE = Math.sqrt((G * H * DENSITY_MERCURY) / DENSITY_AIR_0);
+
+        function computeSpeed(t, gamma) {
+            const v0 = BASE * Math.sqrt(gamma);
+            return { v0, vt: v0 * Math.sqrt(1 + ALPHA * t) };
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // QTALN — VERSION PHYSIQUEMENT FONDÉE
+        // Connexion : Newton-Laplace-Poisson-Biot + acoustique réelle
+        // ═══════════════════════════════════════════════════════
+
+        const QTALN = {
+            // ─── Variables d'état (toutes initialisées à 0, pas de magic numbers) ───
+            coherenceL: 0,      // Cohérence temporelle du signal (corrélation trame-trame)
+            envE: 0,            // Énergie spectrale dans la bande de parole (250-2000 Hz)
+            observerO: 0,       // Couplage géométrique caméra ↔ sources
+            entropy: 0,         // Entropie de Shannon du spectre (0=pur, 1=bruit blanc)
+            temporalCorrelation: 0, // Corrélation temporelle brute (-1→1)
+            rhythm: 0,          // Énergie mécanique acoustique (ρv²/2)
+            posterior: 0,       // Non utilisé (gardé pour compatibilité, = likelihood lissée)
+            decoherence: 0,     // Taux de dissipation acoustique (viscosité + entropie + instabilité)
+            rhythmPhase: 0,     // Phase pour animation oscillante
+            state: 0,           // État global = energy final
+            
+            // ─── Données audio précédentes pour corrélation temporelle ───
+            prevTimeData: null,
+            
+            // ─── Constantes physiques des taux de dissipation ───
+            GAMMA: {
+                viscous: 0.5,      // Amortissement visqueux de Stokes (Hz)
+                thermalBase: 0.3,  // Déphasage thermique de base
+                thermalCoeff: 0.01, // Augmentation par °C
+                molecular: 1.2      // Relaxation moléculaire O2/N2 (Hz)
+            },
+
+            // ─── Bandes de fréquences physiologiques (Bark simplifié) ───
+            BANDS: [
+                { name: 'infra', min: 0, max: 20, weight: 0 },
+                { name: 'basse', min: 20, max: 250, weight: 0.3 },
+                { name: 'medium', min: 250, max: 2000, weight: 0.5 },  // Parole
+                { name: 'aigu', min: 2000, max: 8000, weight: 0.2 }
+            ],
+
+            // ═══════════════════════════════════════════════════════
+            // 1. COHÉRENCE TEMPORELLE RÉELLE (corrélation trame-trame)
+            // ═══════════════════════════════════════════════════════
+            computeTemporalCoherence(timeData) {
+                if (!this.prevTimeData || this.prevTimeData.length !== timeData.length) {
+                    this.prevTimeData = new Float32Array(timeData);
+                    return 0.5; // neutre au démarrage
+                }
+                
+                let dot = 0, normA = 0, normB = 0;
+                for (let i = 0; i < timeData.length; i++) {
+                    dot += timeData[i] * this.prevTimeData[i];
+                    normA += timeData[i] * timeData[i];
+                    normB += this.prevTimeData[i] * this.prevTimeData[i];
+                }
+                
+                // Coefficient de corrélation de Pearson
+                let correlation = 0;
+                if (normA > 1e-10 && normB > 1e-10) {
+                    correlation = dot / Math.sqrt(normA * normB);
+                }
+                
+                // Stocker pour prochaine frame
+                this.prevTimeData = new Float32Array(timeData);
+                
+                // Mapper [-1, 1] → [0, 1] (0.5 = bruit, 1 = parfaitement périodique)
+                return 0.5 + 0.5 * Math.max(-1, Math.min(1, correlation));
+            },
+
+            // ═══════════════════════════════════════════════════════
+            // 2. ANALYSE SPECTRALE RÉELLE (énergie par bande + entropie Shannon)
+            // ═══════════════════════════════════════════════════════
+            computeSpectralEnergy(fftData, sampleRate) {
+                const nyquist = sampleRate / 2;
+                const binWidth = nyquist / fftData.length;
+                let totalEnergy = 0;
+                const bandEnergy = new Array(this.BANDS.length).fill(0);
+                
+                for (let i = 0; i < fftData.length; i++) {
+                    const freq = i * binWidth;
+                    const amp = Math.pow(10, fftData[i] / 20); // dB → linéaire
+                    const energy = amp * amp; // énergie ∝ amplitude²
+                    
+                    totalEnergy += energy;
+                    
+                    for (let b = 0; b < this.BANDS.length; b++) {
+                        if (freq >= this.BANDS[b].min && freq < this.BANDS[b].max) {
+                            bandEnergy[b] += energy * this.BANDS[b].weight;
+                            break;
+                        }
+                    }
+                }
+                
+                // ─── ENTROPIE DE SHANNON RÉELLE ───
+                let shannonEntropy = 0;
+                if (totalEnergy > 1e-10) {
+                    for (let b = 0; b < this.BANDS.length; b++) {
+                        const p = bandEnergy[b] / totalEnergy;
+                        if (p > 1e-10) shannonEntropy -= p * Math.log2(p);
+                    }
+                }
+                const maxEntropy = Math.log2(this.BANDS.length);
+                const normalizedEntropy = maxEntropy > 0 ? shannonEntropy / maxEntropy : 0;
+                
+                return {
+                    totalEnergy,
+                    spectralEntropy: Math.max(0, Math.min(1, normalizedEntropy)),
+                    bandEnergy: bandEnergy.map(e => totalEnergy > 0 ? e / totalEnergy : 0),
+                    mediumEnergy: totalEnergy > 0 ? bandEnergy[2] / totalEnergy : 0 // bande medium
+                };
+            },
+
+            // ═══════════════════════════════════════════════════════
+            // 3. COUPLAGE GÉOMÉTRIQUE OBSERVATEUR (caméra ↔ sources)
+            // ═══════════════════════════════════════════════════════
+            computeObserverCoupling(camera, sourcePositions) {
+                if (!camera || !sourcePositions || sourcePositions.length === 0) return 0.5;
+                
+                // Distance moyenne caméra ↔ sources
+                const camPos = camera.position;
+                let totalDist = 0;
+                sourcePositions.forEach(pos => {
+                    const dx = camPos.x - pos[0];
+                    const dy = camPos.y - pos[1];
+                    const dz = camPos.z - pos[2];
+                    totalDist += Math.sqrt(dx*dx + dy*dy + dz*dz);
+                });
+                const avgDist = totalDist / sourcePositions.length;
+                
+                // Couplage distance : proche = fort (1), loin = faible (0)
+                // Plage typique : 5-30 unités 3D
+                const distCoupling = Math.max(0, Math.min(1, 1 - (avgDist - 5) / 25));
+                
+                // Alignement de vue : face au centre = meilleur
+                const viewDir = new THREE.Vector3();
+                camera.getWorldDirection(viewDir);
+                const toCenter = new THREE.Vector3(0, 0, 0).sub(camPos).normalize();
+                const alignment = Math.max(0, viewDir.dot(toCenter));
+                
+                return distCoupling * (0.3 + 0.7 * alignment);
+            },
+
+            // ═══════════════════════════════════════════════════════
+            // 4. DÉCOHÉRENCE ACOUSTIQUE RÉELLE (viscosité + entropie + instabilité)
+            // ═══════════════════════════════════════════════════════
+            computeAcousticDecoherence(temperature, gamma, spectralEntropy, temporalCoherence, vt) {
+                // ─── Viscosité de l'air (Sutherland) ───
+                const T_kelvin = 273.15 + temperature;
+                const mu0 = 1.716e-5; // Pa·s à 273.15K
+                const C = 111; // constante de Sutherland
+                const viscosity = mu0 * (273.15 + C) / (T_kelvin + C) * Math.pow(T_kelvin / 273.15, 1.5);
+                
+                // ─── Nombre de Knudsen acoustique ───
+                const freqRef = 440; // Hz de référence
+                const wavelength = vt / Math.max(freqRef, 1);
+                const knudsen = viscosity / (1.225 * vt * wavelength);
+                
+                // ─── Taux de dissipation physiques ───
+                const thermalRate = this.GAMMA.thermalBase + this.GAMMA.thermalCoeff * Math.max(0, temperature);
+                const viscousDissipation = this.GAMMA.viscous * knudsen * 1000;
+                const thermalDissipation = thermalRate * 0.3;
+                const molecularDissipation = this.GAMMA.molecular * 0.2;
+                
+                // ─── Dissipation du signal ───
+                // Signal chaotique (haute entropie) ET instable (basse cohérence) = plus de dissipation
+                const signalDissipation = spectralEntropy * (1 - temporalCoherence);
+                
+                // ─── Total ───
+                const totalDecoherence = 0.05 
+                    + viscousDissipation * 0.25 
+                    + thermalDissipation * 0.15
+                    + molecularDissipation * 0.10
+                    + signalDissipation * 0.45;
+                
+                return Math.max(0.05, Math.min(0.85, totalDecoherence));
+            },
+
+            // ═══════════════════════════════════════════════════════
+            // 5. ÉNERGIE MÉCANIQUE ACOUSTIQUE (ρv²/2)
+            // ═══════════════════════════════════════════════════════
+            computeAcousticEnergy(rms, vt, temperature) {
+                // Densité de l'air en fonction de la température
+                const rho = 1.293 * 273.15 / (273.15 + temperature);
+                
+                // Vitesse des particules = amplitude × vitesse du son (approximation linéaire)
+                const particleVelocity = rms * vt;
+                
+                // Énergie volumique : E = ½ρv²
+                const energyDensity = 0.5 * rho * particleVelocity * particleVelocity;
+                
+                // Normalisation (référence : 1 m/s de vitesse particulaire à 20°C)
+                const refEnergy = 0.5 * 1.293 * 343 * 343 * 0.001;
+                return Math.max(0, Math.min(1, energyDensity / refEnergy));
+            },
+
+            // ═══════════════════════════════════════════════════════
+            // MISE À JOUR PRINCIPALE — Appelée chaque frame audio
+            // ═══════════════════════════════════════════════════════
+            update(audioRms, audioFreqMean, sourceCount, camera, sourcePositions, 
+                   timeData, freqData, sampleRate, temperature, gamma, vt) {
+                
+                // 1. Cohérence temporelle réelle
+                const temporalCoherence = this.computeTemporalCoherence(timeData);
+                this.coherenceL = this.coherenceL * 0.92 + temporalCoherence * 0.08;
+                
+                // 2. Analyse spectrale réelle
+                const spectral = this.computeSpectralEnergy(freqData, sampleRate);
+                this.entropy = spectral.spectralEntropy; // VRAIE entropie de Shannon
+                
+                // 3. Énergie environnementale = énergie dans la bande medium (parole)
+                this.envE = this.envE * 0.85 + spectral.mediumEnergy * 0.15;
+                
+                // 4. Couplage observateur (géométrie 3D)
+                const observerCoupling = this.computeObserverCoupling(camera, sourcePositions);
+                this.observerO = this.observerO * 0.82 + observerCoupling * 0.18;
+                
+                // 5. Décohérence acoustique réelle
+                this.decoherence = this.computeAcousticDecoherence(
+                    temperature, gamma, this.entropy, temporalCoherence, vt
+                );
+                
+                // 6. Énergie mécanique du son
+                const rmsClamped = Math.min(1.0, audioRms * 1.15);
+                const acousticEnergy = this.computeAcousticEnergy(rmsClamped, vt, temperature);
+                
+                // 7. Rythme = énergie mécanique atténuée par décohérence
+                this.rhythm = acousticEnergy * (1 - this.decoherence * 0.35);
+                this.rhythmPhase += 0.065 * this.rhythm;
+                
+                // 8. Posterior = likelihood lissée (compatibilité, non utilisé dans energy)
+                const likelihood = rmsClamped * 0.8 + (audioFreqMean / 1600) * 0.2;
+                this.posterior = this.posterior * 0.65 + likelihood * 0.35;
+                
+                // 9. État global = énergie finale
+                this.state = this.rhythm * this.envE * this.observerO * (1 - this.decoherence * 0.5);
+                
+                return this;
+            },
+
+            // ═══════════════════════════════════════════════════════
+            // SORTIE — Contrôle de l'animation 3D
+            // ═══════════════════════════════════════════════════════
+            getControl() {
+                // Energy = énergie mécanique × couplage environnemental × couplage observateur
+                //          atténué par dissipation thermique et entropique
+                const energy = this.rhythm 
+                             * (0.45 + 0.55 * this.envE) 
+                             * this.observerO 
+                             * (1.0 - this.decoherence * 0.65);
+
+                return {
+                    // ─── Variables physiques réelles ───
+                    rhythm: this.rhythm,              // Énergie mécanique (0→1)
+                    env: this.envE,                   // Énergie spectrale medium (0→1)
+                    coherence: this.coherenceL,       // Cohérence temporelle (0→1)
+                    coupling: this.observerO,         // Couplage caméra (0→1)
+                    posterior: this.posterior,        // Likelihood lissée (compatibilité)
+                    decoherence: this.decoherence,    // Taux de dissipation (0→0.85)
+                    entropy: this.entropy,            // Entropie spectrale Shannon (0→1)
+                    state: this.state,                // État composite (0→1)
+                    
+                    // ─── Sortie finale pour animation ───
+                    energy: Math.max(0.03, Math.min(1.0, energy)),
+                    rhythmPhase: this.rhythmPhase,
+                    
+                    // ─── Métriques physiques pour debug/affichage ───
+                    physics: {
+                        acousticEnergy: this.rhythm,
+                        spectralEntropy: this.entropy,
+                        temporalCoherence: this.coherenceL,
+                        thermalDissipation: this.decoherence,
+                        observerDistance: this.observerO
+                    }
+                };
+            }
+        };
+
+        // ═══════════════════════════════════════════════════════
+        // DOM REFS
+        // ═══════════════════════════════════════════════════════
+        const $ = id => document.getElementById(id);
+        const els = {
+            v0: $('v0-display'), vt: $('vt-display'), gamma: $('gamma-display'), temp: $('temp-display'),
+            tempSlider: $('temp-slider'), tempValue: $('temp-value'),
+            gammaSlider: $('gamma-slider'), gammaValue: $('gamma-value'),
+            sensSlider: $('sens-slider'), sensValue: $('sens-value'),
+            playBtn: $('play-btn'), pauseBtn: $('pause-btn'), stopBtn: $('stop-btn'),
+            audioFile: $('audio-file'), audioStatus: $('audio-status'), audioTime: $('audio-time'),
+            spectrumBars: $('spectrum-bars'), pedalTemp: $('pedal-temp'), pedalFreq: $('pedal-freq'),
+            pedalSpeed: $('pedal-speed'), rmsBar: $('rms-bar'), waveStatus: $('wave-status'),
+            pedalDisp: $('pedal-disp'), modeBtn: $('mode-btn'),
+        };
+
+        console.log('✅ DOM elements loaded');
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIO STATE
+        // ═══════════════════════════════════════════════════════
+        const AudioState = {
+            ctx: null, analyser: null, gainNode: null, buffer: null, source: null,
+            isPlaying: false, startTime: 0, pauseOffset: 0, duration: 0, rafId: null,
+            freqData: null, timeData: null,
+            fftFreqs: [], fftAmps: [], fftPhases: [],
+            rms: 0, pressure: 0, freqMean: 0,
+            init() {
+                if (this.ctx) return;
+                try {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    this.analyser = this.ctx.createAnalyser();
+                    this.analyser.fftSize = 2048;
+                    this.analyser.smoothingTimeConstant = 0.7;
+                    this.gainNode = this.ctx.createGain();
+                    this.gainNode.gain.value = 0.8;
+                    this.analyser.connect(this.gainNode);
+                    this.gainNode.connect(this.ctx.destination);
+                    this.freqData = new Float32Array(this.analyser.frequencyBinCount);
+                    this.timeData = new Float32Array(this.analyser.fftSize);
+                    console.log('✅ AudioContext initialized');
+                } catch (e) {
+                    console.error('❌ AudioContext error:', e);
+                }
+            },
+            resume() { if (this.ctx?.state === 'suspended') this.ctx.resume(); },
+            createSource() {
+                if (!this.ctx || !this.buffer) return null;
+                try {
+                    const src = this.ctx.createBufferSource();
+                    src.buffer = this.buffer;
+                    src.connect(this.analyser);
+                    src.onended = () => { if (this.isPlaying) stopAudio(); };
+                    return src;
+                } catch(e) {
+                    console.error('❌ Create source error:', e);
+                    return null;
+                }
+            },
+            getCurrentTime() {
+                return this.isPlaying ? this.pauseOffset + (this.ctx.currentTime - this.startTime) : this.pauseOffset;
+            },
+            dispose() {
+                if (this.rafId) { cancelAnimationFrame(this.rafId); this.rafId = null; }
+                if (this.source) { try { this.source.stop(); } catch(e){} this.source.disconnect(); this.source = null; }
+                this.isPlaying = false;
+                this.fftFreqs = []; this.fftAmps = []; this.fftPhases = [];
+            }
+        };
+
+        // ═══════════════════════════════════════════════════════
+        // THREE.JS SCENE
+        // ═══════════════════════════════════════════════════════
+        console.log('🎨 Initializing Three.js...');
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0f1a);
+        scene.fog = new THREE.FogExp2(0x0a0f1a, 0.018);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100);
+        camera.position.set(16, 9, 20);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        const container = document.getElementById('canvas-container');
+        if (container) {
+            container.appendChild(renderer.domElement);
+            console.log('✅ Renderer attached to container');
+        }
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        controls.minDistance = 4;
+        controls.maxDistance = 70;
+        controls.target.set(0, 0, 0);
+        controls.update();
+
+        // Lumières
+        scene.add(new THREE.AmbientLight(0x1a1f2e, 0.5));
+        const hemi = new THREE.HemisphereLight(0x0ea5e9, 0x0a0f1a, 0.6);
+        scene.add(hemi);
+        const main = new THREE.DirectionalLight(0xffffff, 2.5);
+        main.position.set(8, 16, 12);
+        main.castShadow = true;
+        main.shadow.mapSize.set(1024, 1024);
+        scene.add(main);
+        const fill = new THREE.DirectionalLight(0x6366f1, 0.5);
+        fill.position.set(-8, 4, 8);
+        scene.add(fill);
+
+        // Grille
+        const grid = new THREE.GridHelper(28, 56, 0x1e293b, 0x0f172a);
+        grid.position.y = -4.0;
+        grid.material.transparent = true;
+        grid.material.opacity = 0.05;
+        scene.add(grid);
+
+        // ═══════════════════════════════════════════════════════
+        // GROUPES PERSISTANTS
+        // ═══════════════════════════════════════════════════════
+        let molGroup = new THREE.Group();
+        scene.add(molGroup);
+        let arrowGroup = new THREE.Group();
+        scene.add(arrowGroup);
+        let waveGroup = new THREE.Group();
+        scene.add(waveGroup);
+
+        let moleculeMeshes = [];
+        let moleculeData = [];
+        let arrowMeshes = [];
+        let sources = [];
+        let compMeshes = [];
+        let rareMeshes = [];
+        let wavefronts = [];
+        let MOL_COUNT = 250;
+        let sourcePositions = [];
+        let hasActiveAudio = false;
+        let qtalnEnergy = 0;
+
+        function rebuildScene() {
+            while(molGroup.children.length > 0) {
+                const child = molGroup.children[0];
+                child.geometry?.dispose();
+                child.material?.dispose();
+                molGroup.remove(child);
+            }
+            while(arrowGroup.children.length > 0) {
+                const child = arrowGroup.children[0];
+                child.geometry?.dispose();
+                child.material?.dispose();
+                arrowGroup.remove(child);
+            }
+            while(waveGroup.children.length > 0) {
+                const child = waveGroup.children[0];
+                child.geometry?.dispose();
+                child.material?.dispose();
+                waveGroup.remove(child);
+            }
+
+            sources.forEach(s => { scene.remove(s.mesh); s.mesh.geometry.dispose(); s.mesh.material.dispose(); });
+            sources = [];
+            compMeshes.forEach(c => { scene.remove(c.mesh); c.mesh.geometry.dispose(); c.mesh.material.dispose(); });
+            compMeshes = [];
+            rareMeshes.forEach(r => { scene.remove(r.mesh); r.mesh.geometry.dispose(); r.mesh.material.dispose(); });
+            rareMeshes = [];
+            moleculeMeshes = [];
+            moleculeData = [];
+            arrowMeshes = [];
+            wavefronts = [];
+
+            const config = modeConfig;
+
+            const MOL_SIZE = config.molSize;
+            const SOURCE_SIZE = config.sourceSize;
+            const COMP_SIZE = config.compSize;
+            const RARE_SIZE = config.rareSize;
+            const WAVE_BASE = config.waveBase;
+            const WAVE_OPACITY = config.waveOpacity;
+
+            MOL_COUNT = config.moleculeCount;
+
+            const numSources = 6;
+            const srcRadius = config.sourceRadius;
+            sourcePositions = [];
+            for (let i = 0; i < numSources; i++) {
+                const a = (i / numSources) * Math.PI * 2 + Math.PI / 6;
+                const r = srcRadius + 0.4 * (i % 2);
+                sourcePositions.push([Math.cos(a) * r, 0.05 * (i % 2 - 0.5), Math.sin(a) * r]);
+            }
+
+            sources = [];
+            sourcePositions.forEach((pos, i) => {
+                const geo = new THREE.SphereGeometry(SOURCE_SIZE, 28, 28);
+                const mat = new THREE.MeshStandardMaterial({
+                    color: 0x0ea5e9,
+                    emissive: 0x0ea5e9,
+                    emissiveIntensity: 0.5,
+                    roughness: 0.15,
+                    metalness: 0.3,
+                });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(...pos);
+                mesh.castShadow = true;
+                scene.add(mesh);
+                sources.push({ mesh, basePos: pos, phase: i * 1.1 });
+            });
+
+            if (config.showCompression) {
+                sourcePositions.forEach((pos, i) => {
+                    const cGeo = new THREE.SphereGeometry(COMP_SIZE, 28, 28);
+                    const cMat = new THREE.MeshStandardMaterial({
+                        color: 0xf59e0b,
+                        emissive: 0xf59e0b,
+                        emissiveIntensity: 0.10,
+                        transparent: true,
+                        opacity: config.compOpacity,
+                        wireframe: true
+                    });
+                    const cMesh = new THREE.Mesh(cGeo, cMat);
+                    cMesh.position.set(...pos);
+                    scene.add(cMesh);
+                    compMeshes.push({ mesh: cMesh, phase: i * 0.7 });
+
+                    const rGeo = new THREE.SphereGeometry(RARE_SIZE, 24, 24);
+                    const rMat = new THREE.MeshStandardMaterial({
+                        color: 0xa855f7,
+                        emissive: 0xa855f7,
+                        emissiveIntensity: 0.08,
+                        transparent: true,
+                        opacity: config.rareOpacity,
+                        roughness: 0.5,
+                        wireframe: true
+                    });
+                    const rMesh = new THREE.Mesh(rGeo, rMat);
+                    const angle = i * 0.8 + 1.2;
+                    rMesh.position.set(
+                        pos[0] + Math.cos(angle) * 0.8,
+                        pos[1] + 0.05,
+                        pos[2] + Math.sin(angle) * 0.8
+                    );
+                    scene.add(rMesh);
+                    rareMeshes.push({ mesh: rMesh, phase: i * 0.9 + 0.5 });
+                });
+            }
+
+            const molGeo = new THREE.SphereGeometry(MOL_SIZE, 8, 8);
+            const molMat = new THREE.MeshStandardMaterial({
+                color: 0xfbbf24,
+                emissive: 0xfbbf24,
+                emissiveIntensity: 0.10,
+                roughness: 0.3,
+                metalness: 0.1,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            const spread = config.moleculeSpread;
+            for (let i = 0; i < MOL_COUNT; i++) {
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                const r = 0.5 + Math.random() * spread;
+                const x = Math.sin(phi) * Math.cos(theta) * r;
+                const y = Math.sin(phi) * Math.sin(theta) * r * 0.3;
+                const z = Math.cos(phi) * r;
+                const mesh = new THREE.Mesh(molGeo, molMat.clone());
+                mesh.position.set(x, y, z);
+                mesh.castShadow = true;
+                molGroup.add(mesh);
+                moleculeMeshes.push(mesh);
+                moleculeData.push({
+                    baseX: x, baseY: y, baseZ: z,
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
+
+            const arrowSize = Math.max(0.06, MOL_SIZE * 0.5 * config.arrowScale);
+            const arrowGeo2 = new THREE.ConeGeometry(arrowSize * 0.8, arrowSize * 2.0, 4);
+            moleculeMeshes.forEach((m) => {
+                const mat = new THREE.MeshBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0 });
+                const arrow = new THREE.Mesh(arrowGeo2, mat);
+                arrow.position.copy(m.position);
+                arrow.visible = false;
+                arrowGroup.add(arrow);
+                arrowMeshes.push(arrow);
+            });
+
+            sourcePositions.forEach(pos => {
+                for (let i = 0; i < 2; i++) {
+                    const geo = new THREE.SphereGeometry(WAVE_BASE * 0.7, 20, 20);
+                    const mat = new THREE.MeshBasicMaterial({
+                        color: 0x00d4ff,
+                        transparent: true,
+                        opacity: 0.06,
+                        wireframe: true
+                    });
+                    const mesh = new THREE.Mesh(geo, mat);
+                    mesh.position.set(...pos);
+                    waveGroup.add(mesh);
+                    wavefronts.push({ mesh, age: -i * 0.8, maxAge: 3.0, sourcePos: pos });
+                }
+            });
+
+            console.log(`✅ Scene rebuilt: ${sources.length} sources, ${MOL_COUNT} molecules`);
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // SPECTRUM BARS UI
+        // ═══════════════════════════════════════════════════════
+        if (els.spectrumBars) {
+            for (let i = 0; i < 24; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'spectrum-bar';
+                bar.style.height = '2px';
+                els.spectrumBars.appendChild(bar);
+            }
+        }
+
+        function updateSpectrumBars(data) {
+            if (!els.spectrumBars) return;
+            const bars = els.spectrumBars.children;
+            const len = Math.min(data.length, bars.length);
+            for (let i = 0; i < len; i++) {
+                const val = Math.max(0, Math.min(1, data[i] || 0));
+                const h = 2 + val * 18;
+                bars[i].style.height = h + 'px';
+                const hue = 200 + (i / len) * 50;
+                bars[i].style.background = `hsl(${hue}, 80%, ${35 + val * 45}%)`;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // FFT
+        // ═══════════════════════════════════════════════════════
+        function computeFFT(sampleRate, maxBins) {
+            if (!AudioState.analyser) return { freqs: [], amps: [], phases: [] };
+
+            try {
+                const fftData = new Float32Array(AudioState.analyser.frequencyBinCount);
+                AudioState.analyser.getFloatFrequencyData(fftData);
+
+                const peaks = [];
+                const minDb = -65;
+                const len = Math.min(fftData.length, 300);
+
+                for (let i = 3; i < len - 3; i++) {
+                    const val = fftData[i];
+                    if (val > fftData[i-1] && val > fftData[i+1] && val > minDb) {
+                        const freq = (i / fftData.length) * sampleRate;
+                        const amp = Math.pow(10, val / 20);
+                        if (amp > 0.001 && freq > 30 && freq < 10000) {
+                            peaks.push({ freq, amp });
+                        }
+                    }
+                }
+
+                peaks.sort((a, b) => b.amp - a.amp);
+
+                const count = Math.min(maxBins, peaks.length);
+                const freqs = [], amps = [], phases = [];
+
+                for (let i = 0; i < count; i++) {
+                    freqs.push(peaks[i].freq);
+                    amps.push(Math.min(1, peaks[i].amp * 1.5));
+                    phases.push(Math.random() * Math.PI * 2);
+                }
+
+                if (freqs.length === 0) {
+                    freqs.push(440);
+                    amps.push(0.05);
+                    phases.push(0);
+                }
+
+                return { freqs, amps, phases };
+            } catch(e) {
+                console.warn('FFT error:', e);
+                return { freqs: [440], amps: [0.05], phases: [0] };
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // CHAMP DE PRESSION
+        // ═══════════════════════════════════════════════════════
+        let pressureField = new Float32Array(0);
+
+        function updatePressureField(time, freqs, amps, phases, c, sens, qtalnControl) {
+            const count = moleculeMeshes.length;
+            if (pressureField.length !== count) {
+                pressureField = new Float32Array(count);
+            }
+
+            const newPressure = new Float32Array(count);
+
+            if (freqs.length === 0) {
+                freqs = [440];
+                amps = [0.05];
+                phases = [0];
+            }
+
+            const numFreqs = Math.min(freqs.length, 3);
+            const qRhythm = qtalnControl.rhythm || 0.5;
+
+            for (let i = 0; i < count; i++) {
+                const d = moleculeData[i];
+                let p = 0;
+
+                for (let s = 0; s < sources.length; s++) {
+                    const pos = sources[s].basePos;
+                    const dx = d.baseX - pos[0];
+                    const dy = d.baseY - pos[1];
+                    const dz = d.baseZ - pos[2];
+                    const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                    if (dist < 0.1) continue;
+
+                    for (let k = 0; k < numFreqs; k++) {
+                        const f = Math.max(30, freqs[k] || 440);
+                        const omega = 2 * Math.PI * f;
+                        const lambda = c / Math.max(f, 1);
+                        const k_wave = 2 * Math.PI / Math.max(lambda, 0.01);
+                        const delay = dist / Math.max(c, 1);
+                        const baseAmp = Math.min(1, (amps[k] || 0.01) * 0.5 / (1 + dist * 0.12));
+
+                        const qMod = qRhythm * (0.3 + 0.7 * qtalnControl.env);
+                        const amp = baseAmp * (0.3 + 0.7 * qMod);
+
+                        const phase = phases[k] || 0;
+                        p += amp * Math.sin(k_wave * dist - omega * (time - delay) + phase) / (1 + dist * 0.06);
+                    }
+                }
+
+                const r = Math.sqrt(d.baseX*d.baseX + d.baseZ*d.baseZ);
+                p *= Math.max(0.1, 1 - r / 8);
+
+                newPressure[i] = p * sens * 1.2;
+            }
+
+            const alphaF = 0.35;
+            for (let i = 0; i < count; i++) {
+                pressureField[i] = pressureField[i] * (1 - alphaF) + newPressure[i] * alphaF;
+            }
+
+            return pressureField;
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // WAVE CANVAS
+        // ═══════════════════════════════════════════════════════
+        const waveCanvas = document.getElementById('wave-canvas');
+        let waveCtx = null;
+        if (waveCanvas) {
+            waveCtx = waveCanvas.getContext('2d');
+        }
+
+        function drawWaveGraph(amp) {
+            if (!waveCtx || !waveCanvas) return;
+            const w = waveCanvas.width, h = waveCanvas.height;
+            waveCtx.clearRect(0, 0, w, h);
+            waveCtx.fillStyle = 'rgba(0,0,0,0.2)';
+            waveCtx.fillRect(0, 0, w, h);
+
+            const data = AudioState.timeData;
+            if (data && data.length > 0) {
+                const step = Math.max(1, Math.floor(data.length / w));
+                waveCtx.beginPath();
+                let first = true;
+                for (let i = 0; i < w; i++) {
+                    const idx = Math.min(data.length - 1, i * step);
+                    const val = data[idx] || 0;
+                    const x = i;
+                    const y = h/2 - val * (h/2 - 3) * 0.6;
+                    if (first) { waveCtx.moveTo(x, y); first = false; }
+                    else waveCtx.lineTo(x, y);
+                }
+                const grad = waveCtx.createLinearGradient(0, 0, 0, h);
+                grad.addColorStop(0, 'rgba(245,158,11,0.5)');
+                grad.addColorStop(0.5, 'rgba(148,163,184,0.1)');
+                grad.addColorStop(1, 'rgba(168,85,247,0.5)');
+                waveCtx.strokeStyle = grad;
+                waveCtx.lineWidth = 1.2;
+                waveCtx.stroke();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // MAIN LOOP
+        // ═══════════════════════════════════════════════════════
+        let currentFreqs = [440], currentAmps = [0.05], currentPhases = [0];
+        let frameCount = 0;
+        let lastWaveSpawn = 0;
+        let zeroCrossing = false;
+
+        function createWavefrontOnAudio(pos) {
+            if (!waveGroup) return null;
+            const config = modeConfig;
+            const waveBase = config.waveBase;
+            const geo = new THREE.SphereGeometry(waveBase, 20, 20);
+            const mat = new THREE.MeshBasicMaterial({
+                color: 0x00d4ff,
+                transparent: true,
+                opacity: config.waveOpacity * 0.5,
+                wireframe: true
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(...pos);
+            waveGroup.add(mesh);
+            const wf = { mesh, age: 0, maxAge: 3.0 + Math.random() * 0.6, sourcePos: pos };
+            wavefronts.push(wf);
+            return wf;
+        }
+
+        function analyzeAudio() {
+            frameCount++;
+            if (!AudioState.isPlaying || !AudioState.analyser) {
+                hasActiveAudio = false;
+                qtalnEnergy = 0;
+                return;
+            }
+
+            try {
+                AudioState.analyser.getFloatTimeDomainData(AudioState.timeData);
+                AudioState.analyser.getFloatFrequencyData(AudioState.freqData);
+
+                let sumSq = 0;
+                let maxVal = 0;
+                const data = AudioState.timeData;
+                for (let i = 0; i < data.length; i++) {
+                    const v = data[i];
+                    sumSq += v * v;
+                    if (Math.abs(v) > maxVal) maxVal = Math.abs(v);
+                }
+                AudioState.rms = Math.sqrt(sumSq / data.length);
+                AudioState.pressure = maxVal;
+
+                let domFreq = 0, domAmp = 0;
+                let sumFreq = 0, sumAmp = 0;
+                const fftData = AudioState.freqData;
+                const len = Math.min(fftData.length, 300);
+                for (let i = 2; i < len; i++) {
+                    const amp = Math.pow(10, fftData[i] / 20);
+                    const freq = (i / fftData.length) * AudioState.ctx.sampleRate;
+                    if (amp > 0.001) {
+                        sumFreq += freq * amp;
+                        sumAmp += amp;
+                    }
+                    if (amp > domAmp && amp > 0.001) {
+                        domAmp = amp;
+                        domFreq = freq;
+                    }
+                }
+                const freqMean = sumAmp > 0 ? sumFreq / sumAmp : 440;
+
+                const maxBins = modeConfig.maxFFT;
+                if (frameCount % 3 === 0) {
+                    const result = computeFFT(AudioState.ctx.sampleRate, maxBins);
+                    if (result.freqs.length > 0 && result.amps.length > 0) {
+                        currentFreqs = result.freqs;
+                        currentAmps = result.amps;
+                        currentPhases = result.phases;
+                    }
+                }
+
+                const t = parseFloat(els.tempSlider.value);
+                const gamma = parseFloat(els.gammaSlider.value);
+                const sens = parseFloat(els.sensSlider.value);
+                const { v0, vt } = computeSpeed(t, gamma);
+                const speedRatio = vt / v0;
+
+                const rmsVal = Math.min(1, AudioState.rms * 2);
+
+                // ═══════════════════════════════════════════════
+                // QTALN UPDATE — Version physiquement fondée
+                // ═══════════════════════════════════════════════
+                const qtalnControl = QTALN.update(
+                    rmsVal,
+                    freqMean,
+                    sources.length,
+                    camera,
+                    sourcePositions,
+                    AudioState.timeData,
+                    AudioState.freqData,
+                    AudioState.ctx.sampleRate,
+                    t,
+                    gamma,
+                    vt
+                ).getControl();
+                qtalnEnergy = qtalnControl.energy;
+                hasActiveAudio = qtalnEnergy > 0.005;
+
+                // ─── Connexion physique : vitesse du son → animation ───
+                const waveSpeed = vt * 0.03;
+                const molecularDisplacementScale = 1 / Math.sqrt(Math.max(0.1, speedRatio));
+                const compressionScale = Math.sqrt(Math.max(0.1, speedRatio));
+
+                if (els.rmsBar) {
+                    els.rmsBar.style.width = Math.min(100, rmsVal * 120 * sens) + '%';
+                }
+                if (els.pedalFreq) {
+                    els.pedalFreq.textContent = domFreq > 20 ? domFreq.toFixed(0) + ' Hz' : '— Hz';
+                }
+                if (els.pedalSpeed) {
+                    els.pedalSpeed.textContent = vt.toFixed(1) + ' m/s';
+                }
+                if (els.audioTime) {
+                    els.audioTime.textContent =
+                        `${formatTime(AudioState.getCurrentTime())} / ${formatTime(AudioState.duration)}`;
+                }
+
+                const spec = new Float32Array(24);
+                for (let i = 0; i < 24; i++) {
+                    const idx = Math.floor((i / 24) * Math.min(fftData.length, 300));
+                    spec[i] = Math.max(0, Math.min(1, (fftData[idx] + 80) / 80));
+                }
+                updateSpectrumBars(spec);
+
+                const dispPm = 10 * rmsVal * sens * 3 * molecularDisplacementScale;
+                if (els.pedalDisp) {
+                    els.pedalDisp.textContent = dispPm > 0.1 ? `~${dispPm.toFixed(1)} pm` : '< 0.1 pm';
+                }
+
+                const threshold = modeConfig.waveSpawnThreshold;
+                const currentPressure = AudioState.pressure;
+
+                if (hasActiveAudio) {
+                    if (zeroCrossing && currentPressure < 0.005) {
+                        zeroCrossing = false;
+                    } else if (!zeroCrossing && currentPressure > threshold && rmsVal > 0.01) {
+                        zeroCrossing = true;
+                        const src = sources[Math.floor(Math.random() * sources.length)];
+                        if (src && wavefronts.length < 50) {
+                            const wf = createWavefrontOnAudio(src.basePos);
+                            if (wf) {
+                                wf.maxAge = 3.0 / (0.3 + 0.7 * sens);
+                            }
+                        }
+                    }
+                }
+
+                const freqs = currentFreqs.length > 0 ? currentFreqs : [domFreq || 440];
+                const amps = currentAmps.length > 0 ? currentAmps : [rmsVal * 0.2 + 0.01];
+                const phases = currentPhases.length > 0 ? currentPhases : [0];
+
+                const pressure = updatePressureField(
+                    AudioState.getCurrentTime(),
+                    freqs, amps, phases,
+                    vt, sens,
+                    qtalnControl
+                );
+
+                const config = modeConfig;
+                const maxDisp = 0.015 * config.displacementScale * 120 * sens * molecularDisplacementScale;
+                const count = moleculeMeshes.length;
+
+                for (let i = 0; i < count; i++) {
+                    const p = pressure[i] || 0;
+                    const d = moleculeData[i];
+                    const disp = p * maxDisp;
+
+                    const r = Math.sqrt(d.baseX*d.baseX + d.baseZ*d.baseZ);
+                    if (r > 0.01) {
+                        const nx = d.baseX / r;
+                        const nz = d.baseZ / r;
+                        moleculeMeshes[i].position.x = d.baseX + disp * nx * 0.6;
+                        moleculeMeshes[i].position.y = d.baseY + disp * 0.12;
+                        moleculeMeshes[i].position.z = d.baseZ + disp * nz * 0.6;
+                    } else {
+                        moleculeMeshes[i].position.x = d.baseX + disp * 0.3;
+                        moleculeMeshes[i].position.y = d.baseY + disp * 0.12;
+                        moleculeMeshes[i].position.z = d.baseZ + disp * 0.3;
+                    }
+
+                    const arrow = arrowMeshes[i];
+                    if (arrow && config.showVectors) {
+                        const absDisp = Math.abs(disp);
+                        arrow.visible = absDisp > 0.001;
+                        arrow.position.copy(moleculeMeshes[i].position);
+                        arrow.position.y += config.molSize * 1.5;
+                        if (absDisp > 0.002) {
+                            const dx = disp * 0.6, dy = disp * 0.12, dz = disp * 0.6;
+                            const dir = new THREE.Vector3(dx, dy, dz);
+                            if (dir.length() > 0.001) {
+                                dir.normalize();
+                                arrow.lookAt(arrow.position.clone().add(dir));
+                                arrow.rotateX(Math.PI / 2);
+                            }
+                        }
+                        arrow.material.opacity = Math.min(0.7, absDisp * 40);
+                        arrow.scale.setScalar(0.3 + Math.min(1.0, absDisp * 15));
+                    } else if (arrow) {
+                        arrow.visible = false;
+                    }
+                }
+
+                const now = performance.now() / 1000;
+                sources.forEach((s, i) => {
+                    const pulse = 1 + config.sourcePulse * rmsVal * sens * qtalnControl.rhythm * Math.sin(now * 4 + s.phase);
+                    s.mesh.scale.setScalar(config.sourceSize * pulse);
+                    s.mesh.material.emissiveIntensity = 0.3 + 1.2 * rmsVal * sens * qtalnControl.env;
+                });
+
+                // ═══════════════════════════════════════════════
+                // COMPRESSION / RARÉFACTION — Avec couplage physique
+                // ═══════════════════════════════════════════════
+                if (config.showCompression) {
+                    const countMol = moleculeMeshes.length || 1;
+                    const compScalePhys = config.compSize * compressionScale;
+                    const rareScalePhys = config.rareSize * compressionScale;
+
+                    compMeshes.forEach((c, i) => {
+                        const idx = Math.floor(i * countMol / Math.max(1, compMeshes.length));
+                        let p = pressure[idx] || 0;
+                        p = p * 1.35;
+                        const scale = compScalePhys * (1 + Math.max(0, p) * 3.2);
+                        c.mesh.scale.setScalar(Math.max(0.09, scale));
+                        const audioMod = hasActiveAudio ? Math.abs(p) * 0.45 : 0;
+                        c.mesh.material.opacity = Math.min(0.78, config.compOpacity + audioMod);
+                        c.mesh.material.emissiveIntensity = 0.09 + Math.max(0, p) * 0.4;
+                    });
+                    
+                    rareMeshes.forEach((r, i) => {
+                        const idx = Math.floor(i * countMol / Math.max(1, rareMeshes.length));
+                        let p = pressure[idx] || 0;
+                        p = p * 1.35;
+                        const scale = rareScalePhys * (1 + Math.max(0, -p) * 3.0);
+                        r.mesh.scale.setScalar(Math.max(0.06, scale));
+                        const audioMod = hasActiveAudio ? Math.abs(p) * 0.42 : 0;
+                        r.mesh.material.opacity = Math.min(0.70, config.rareOpacity + audioMod * 1.2);
+                        r.mesh.material.emissiveIntensity = 0.07 + Math.max(0, -p) * 0.38;
+                    });
+                }
+
+                // FRONTS D'ONDE
+                const waveBase = config.waveBase * compressionScale;
+                const waveGrowth = config.waveGrowth;
+
+                for (let i = wavefronts.length - 1; i >= 0; i--) {
+                    const wf = wavefronts[i];
+                    wf.age += 0.016;
+                    const p = wf.age / wf.maxAge;
+                    if (p >= 1) {
+                        waveGroup.remove(wf.mesh);
+                        wf.mesh.geometry.dispose();
+                        wf.mesh.material.dispose();
+                        wavefronts.splice(i, 1);
+                        continue;
+                    }
+
+                    if (hasActiveAudio) {
+                        const qEnergy = qtalnControl.energy;
+                        const radius = waveBase + p * waveGrowth * (0.3 + 0.7 * qEnergy) * 1.5;
+                        wf.mesh.scale.setScalar(Math.max(waveBase, radius));
+                        const op = Math.sin(p * Math.PI) * config.waveOpacity * (0.3 + 0.7 * qEnergy) * 1.8;
+                        wf.mesh.material.opacity = Math.max(0.02, Math.min(0.6, op));
+                        if (domFreq > 20) {
+                            const hue = 0.55 + Math.min(0.3, domFreq / 5000);
+                            wf.mesh.material.color.setHSL(Math.min(0.85, hue), 0.85, 0.6);
+                        }
+                    } else {
+                        wf.mesh.material.opacity = 0.06;
+                        wf.mesh.scale.setScalar(waveBase * 0.7);
+                    }
+                }
+
+                drawWaveGraph(rmsVal * sens);
+
+            } catch (e) {
+                console.warn('Audio analysis error:', e);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIO CONTROLS
+        // ═══════════════════════════════════════════════════════
+        function formatTime(s) {
+            if (!s || isNaN(s) || s < 0) return '00:00';
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+        }
+
+        async function loadAudio(file) {
+            try {
+                console.log('📁 Loading audio:', file.name, `(${file.type})`);
+                
+                if (!file || file.size === 0) {
+                    throw new Error('Fichier vide ou invalide');
+                }
+
+                stopAudio();
+                AudioState.init();
+
+                const ab = await file.arrayBuffer();
+                
+                if (!ab || ab.byteLength === 0) {
+                    throw new Error('Données audio vides');
+                }
+
+                try {
+                    AudioState.buffer = await AudioState.ctx.decodeAudioData(ab);
+                } catch (decodeError) {
+                    console.warn('Premier décodage échoué, tentative avec un nouveau contexte...');
+                    AudioState.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    AudioState.buffer = await AudioState.ctx.decodeAudioData(ab);
+                }
+
+                if (!AudioState.buffer || AudioState.buffer.length === 0) {
+                    throw new Error('Données audio décodées invalides');
+                }
+
+                AudioState.duration = AudioState.buffer.duration;
+                AudioState.pauseOffset = 0;
+                AudioState.fftFreqs = [];
+                AudioState.fftAmps = [];
+
+                if (els.audioStatus) {
+                    els.audioStatus.textContent = `✓ ${file.name}`;
+                    els.audioStatus.className = 'audio-status loaded';
+                }
+                if (els.audioTime) {
+                    els.audioTime.textContent = `00:00 / ${formatTime(AudioState.duration)}`;
+                }
+                if (els.playBtn) els.playBtn.disabled = false;
+                if (els.pauseBtn) els.pauseBtn.disabled = true;
+                if (els.stopBtn) els.stopBtn.disabled = true;
+                if (els.waveStatus) {
+                    els.waveStatus.textContent = '⏸ Prêt';
+                    els.waveStatus.className = 'wave-status';
+                }
+                console.log('✅ Audio loaded successfully');
+                console.log(`📊 Durée: ${AudioState.duration}s, Canaux: ${AudioState.buffer.numberOfChannels}`);
+            } catch (e) {
+                console.error('❌ Load error:', e.message);
+                if (els.audioStatus) {
+                    els.audioStatus.textContent = `❌ ${e.message}`;
+                    els.audioStatus.className = 'audio-status error';
+                }
+                AudioState.buffer = null;
+                if (els.playBtn) els.playBtn.disabled = true;
+            }
+        }
+
+        function playAudio() {
+            if (!AudioState.buffer) return;
+            AudioState.resume();
+            if (AudioState.source) {
+                try { AudioState.source.stop(); } catch(e) {}
+                AudioState.source.disconnect();
+            }
+            AudioState.source = AudioState.createSource();
+            if (!AudioState.source) return;
+            AudioState.source.start(0, AudioState.pauseOffset);
+            AudioState.startTime = AudioState.ctx.currentTime;
+            AudioState.isPlaying = true;
+            if (els.playBtn) els.playBtn.disabled = true;
+            if (els.pauseBtn) els.pauseBtn.disabled = false;
+            if (els.stopBtn) els.stopBtn.disabled = false;
+            if (els.audioStatus) {
+                els.audioStatus.textContent = '🔊 Lecture';
+                els.audioStatus.className = 'audio-status playing';
+            }
+            if (els.waveStatus) {
+                els.waveStatus.textContent = '▶ En cours';
+                els.waveStatus.className = 'wave-status playing';
+            }
+            if (AudioState.rafId) cancelAnimationFrame(AudioState.rafId);
+            audioLoop();
+        }
+
+        function pauseAudio() {
+            if (!AudioState.isPlaying || !AudioState.source) return;
+            AudioState.pauseOffset += AudioState.ctx.currentTime - AudioState.startTime;
+            try { AudioState.source.stop(); } catch(e) {}
+            AudioState.source.disconnect();
+            AudioState.source = null;
+            AudioState.isPlaying = false;
+            hasActiveAudio = false;
+            qtalnEnergy = 0;
+            if (els.playBtn) els.playBtn.disabled = false;
+            if (els.pauseBtn) els.pauseBtn.disabled = true;
+            if (els.audioStatus) {
+                els.audioStatus.textContent = '⏸ Pause';
+                els.audioStatus.className = 'audio-status';
+            }
+            if (els.waveStatus) {
+                els.waveStatus.textContent = '⏸ Pause';
+                els.waveStatus.className = 'wave-status paused';
+            }
+            wavefronts.forEach(wf => { wf.mesh.material.opacity = 0.06; });
+        }
+
+        function stopAudio() {
+            AudioState.dispose();
+            AudioState.pauseOffset = 0;
+            AudioState.rms = 0;
+            AudioState.pressure = 0;
+            AudioState.fftFreqs = [];
+            AudioState.fftAmps = [];
+            hasActiveAudio = false;
+            qtalnEnergy = 0;
+            if (els.playBtn) els.playBtn.disabled = AudioState.buffer ? false : true;
+            if (els.pauseBtn) els.pauseBtn.disabled = true;
+            if (els.stopBtn) els.stopBtn.disabled = true;
+            if (els.audioStatus) {
+                els.audioStatus.textContent = AudioState.buffer ? '⏹ Arrêté' : 'Aucun fichier';
+                els.audioStatus.className = 'audio-status';
+            }
+            if (els.waveStatus) {
+                els.waveStatus.textContent = '⏸ En attente';
+                els.waveStatus.className = 'wave-status';
+            }
+            if (els.audioTime) {
+                els.audioTime.textContent = `00:00 / ${formatTime(AudioState.duration)}`;
+            }
+            if (els.pedalFreq) els.pedalFreq.textContent = '— Hz';
+            if (els.rmsBar) els.rmsBar.style.width = '2%';
+            if (els.pedalDisp) els.pedalDisp.textContent = '~10 pm';
+            const bars = els.spectrumBars ? els.spectrumBars.children : [];
+            for (let i = 0; i < bars.length; i++) bars[i].style.height = '2px';
+            arrowMeshes.forEach(a => { a.visible = false; });
+            wavefronts.forEach(wf => { 
+                wf.mesh.material.opacity = 0.06;
+                wf.mesh.scale.setScalar(modeConfig.waveBase * 0.7);
+            });
+            drawWaveGraph(0);
+        }
+
+        function audioLoop() {
+            if (!AudioState.isPlaying) {
+                AudioState.rafId = null;
+                return;
+            }
+            analyzeAudio();
+            AudioState.rafId = requestAnimationFrame(audioLoop);
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // RENDER LOOP
+        // ═══════════════════════════════════════════════════════
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            const t = performance.now() * 0.001;
+            const config = modeConfig;
+            
+            if (!AudioState.isPlaying || !hasActiveAudio) {
+                sources.forEach((s, i) => {
+                    const pulse = 1 + 0.06 * Math.sin(t * 1.2 + s.phase);
+                    s.mesh.scale.setScalar(config.sourceSize * pulse);
+                });
+                arrowMeshes.forEach(a => { a.visible = false; });
+                
+                if (config.showCompression) {
+                    compMeshes.forEach((c, i) => {
+                        const pulse = 1 + 0.05 * Math.sin(t * 0.8 + c.phase);
+                        c.mesh.scale.setScalar(config.compSize * pulse);
+                        c.mesh.material.opacity = config.compOpacity * 0.6;
+                    });
+                    rareMeshes.forEach((r, i) => {
+                        const pulse = 1 - 0.05 * Math.sin(t * 0.7 + r.phase);
+                        r.mesh.scale.setScalar(config.rareSize * Math.max(0.3, pulse));
+                        r.mesh.material.opacity = config.rareOpacity * 0.6;
+                    });
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // UI EVENTS
+        // ═══════════════════════════════════════════════════════
+        function updateUI() {
+            try {
+                const t = parseFloat(els.tempSlider.value);
+                const gamma = parseFloat(els.gammaSlider.value);
+                const sens = parseFloat(els.sensSlider.value);
+                const { v0, vt } = computeSpeed(t, gamma);
+                if (els.v0) els.v0.textContent = v0.toFixed(2) + ' m/s';
+                if (els.vt) els.vt.textContent = vt.toFixed(2) + ' m/s';
+                if (els.gamma) els.gamma.textContent = gamma.toFixed(3);
+                if (els.temp) els.temp.textContent = t + '°C';
+                if (els.tempValue) els.tempValue.textContent = t + '°C';
+                if (els.gammaValue) els.gammaValue.textContent = gamma.toFixed(3);
+                if (els.sensValue) els.sensValue.textContent = sens.toFixed(1);
+                if (els.pedalTemp) els.pedalTemp.textContent = t + ' °C';
+            } catch(e) {
+                console.warn('UI update error:', e);
+            }
+        }
+
+        function toggleMode() {
+            if (currentMode === 'PEDAGOGIQUE') {
+                currentMode = 'REALISTE';
+                modeConfig = MODES.REALISTE;
+                els.modeBtn.textContent = '🔬 Réaliste';
+                els.modeBtn.className = 'btn-mode';
+            } else {
+                currentMode = 'PEDAGOGIQUE';
+                modeConfig = MODES.PEDAGOGIQUE;
+                els.modeBtn.textContent = '🎯 Pédagogique';
+                els.modeBtn.className = 'btn-mode active';
+            }
+            console.log(`🔄 Mode: ${modeConfig.label}`);
+            rebuildScene();
+            pressureField = new Float32Array(0);
+            hasActiveAudio = false;
+            qtalnEnergy = 0;
+        }
+
+        function attachControls() {
+            if (els.tempSlider) els.tempSlider.addEventListener('input', updateUI);
+            if (els.gammaSlider) els.gammaSlider.addEventListener('input', updateUI);
+            if (els.sensSlider) els.sensSlider.addEventListener('input', updateUI);
+            if (els.modeBtn) els.modeBtn.addEventListener('click', toggleMode);
+            if (els.audioFile) {
+                els.audioFile.addEventListener('change', e => {
+                    if (e.target.files[0]) loadAudio(e.target.files[0]);
+                    e.target.value = '';
+                });
+            }
+            if (els.playBtn) els.playBtn.addEventListener('click', playAudio);
+            if (els.pauseBtn) els.pauseBtn.addEventListener('click', pauseAudio);
+            if (els.stopBtn) els.stopBtn.addEventListener('click', stopAudio);
+            console.log('✅ Controls attached');
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ═══════════════════════════════════════════════════════
+        // INIT
+        // ═══════════════════════════════════════════════════════
+        try {
+            rebuildScene();
+            updateUI();
+            attachControls();
+            animate();
+            drawWaveGraph(0);
+            console.log('✅ QTALN FDTD v2.0 initialized successfully!');
+            console.log(`📐 Mode: ${modeConfig.label}`);
+            console.log(`📍 Sources radius: ${modeConfig.sourceRadius} | Molecules spread: ${modeConfig.moleculeSpread}`);
+            console.log(`🔵 Sources: ${sources.length} | 🟡 Molecules: ${MOL_COUNT}`);
+            console.log('🧠 QTALN Engine: version physiquement fondée');
+            console.log('   - Cohérence temporelle (corrélation trame-trame)');
+            console.log('   - Entropie spectrale de Shannon (0=pur, 1=bruit)');
+            console.log('   - Énergie mécanique acoustique (ρv²/2)');
+            console.log('   - Décohérence par viscosité + entropie + instabilité');
+            console.log(`   - Couplage observateur (caméra ↔ sources) = ${QTALN.observerO.toFixed(2)}`);
+            console.log(`   - Taux de décohérence = ${QTALN.decoherence.toFixed(2)}`);
+            console.log('🔬 Visualisation Audio 3D — Lombard Web Services');
+            console.log('💡 Chargez un fichier audio (MP3, WAV, OGG, AAC) pour lancer la simulation');
+        } catch(e) {
+            console.error('❌ Initialization error:', e);
+        }
+    </script>
+</body>
+</html>
