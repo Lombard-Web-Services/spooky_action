@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>QTALN · FDTD Thermoacoustique 3D | Lombard Web Services</title>
+    <title>QTALN · Thermoacoustique 3D | Lombard Web Services</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
@@ -153,6 +153,7 @@
             <span><span class="dot" style="background:#f59e0b;"></span> Compression</span>
             <span><span class="dot" style="background:#a855f7;"></span> Raréfaction</span>
             <span><span class="dot" style="background:#10b981;"></span> Déplacement</span>
+            <span><span class="dot" style="background:#ff4400;"></span> Chaleur</span>
         </div>
     </div>
 
@@ -179,6 +180,7 @@
         <div class="peda-row"><span class="label">Vitesse du son</span><span class="value speed" id="pedal-speed">343 m/s</span></div>
         <div class="meter-track"><div class="meter-fill" id="rms-bar" style="width:2%"></div></div>
         <div class="peda-row" style="margin-top:2px;"><span class="label">Déplacement mol.</span><span class="value" id="pedal-disp">~10 pm</span></div>
+        <div class="peda-row"><span class="label">Chaleur locale</span><span class="value" id="pedal-heat">+0.0 °C</span></div>
         <div class="wave-status" id="wave-status">⏸ En attente</div>
     </div>
 
@@ -213,6 +215,13 @@
                 <span class="ctrl-value" id="sens-value">1.5</span>
             </div>
         </div>
+        <div class="ctrl-group">
+            <label>Chaleur</label>
+            <div class="ctrl-wrap">
+                <input type="range" id="heat-slider" min="0" max="3.0" value="1.5" step="0.05" />
+                <span class="ctrl-value" id="heat-value">1.5</span>
+            </div>
+        </div>
         <div class="mode-toggle">
             <span class="mode-label">Mode</span>
             <button id="mode-btn" class="btn-mode active">🎯 Pédagogique</button>
@@ -232,10 +241,10 @@
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        console.log('🚀 Initialisation QTALN FDTD v2.0 — Physique fondée...');
+        console.log('🚀 Initialisation QTALN FDTD v2.0 — Visibilité améliorée...');
 
         // ═══════════════════════════════════════════════════════
-        // MODES
+        // MODES — OPACITÉS ET TAILLES AUGMENTÉES
         // ═══════════════════════════════════════════════════════
         const MODES = {
             PEDAGOGIQUE: {
@@ -255,14 +264,20 @@
                 sourceRadius: 4.5,
                 moleculeSpread: 7.0,
                 sourceSize: 0.4,
+                compSize: 0.35,          // Augmenté: 0.24 → 0.35
+                rareSize: 0.28,           // Augmenté: 0.20 → 0.28
+                waveBase: 0.5,            // Augmenté: 0.4 → 0.5
+                waveGrowth: 3.5,
                 molSize: 0.08,
-                waveBase: 0.3,
-                waveGrowth: 2.5,
-                compSize: 0.6,
-                rareSize: 0.4,
-                waveOpacity: 0.4,
-                compOpacity: 0.25,
-                rareOpacity: 0.20,
+                waveOpacity: 0.75,        // Doublé: 0.40 → 0.75
+                compOpacity: 0.55,        // Doublé: 0.25 → 0.55
+                rareOpacity: 0.45,        // Doublé: 0.20 → 0.45
+                heatScale: 2.0,
+                heatDiffusion: 2.2,
+                heatBaseRadius: 2.5,
+                waveVeilleOpacity: 0.25,  // Nouveau: opacité en veille
+                compVeilleOpacity: 0.30,  // Nouveau: opacité en veille
+                rareVeilleOpacity: 0.25,  // Nouveau: opacité en veille
             },
             REALISTE: {
                 label: '🔬 Réaliste',
@@ -281,14 +296,20 @@
                 sourceRadius: 1.8,
                 moleculeSpread: 3.0,
                 sourceSize: 0.15,
+                compSize: 0.12,
+                rareSize: 0.10,
+                waveBase: 0.18,
+                waveGrowth: 2.8,
                 molSize: 0.025,
-                waveBase: 0.06,
-                waveGrowth: 0.3,
-                compSize: 0.18,
-                rareSize: 0.12,
-                waveOpacity: 0.18,
-                compOpacity: 0.10,
-                rareOpacity: 0.08,
+                waveOpacity: 0.35,
+                compOpacity: 0.25,
+                rareOpacity: 0.20,
+                heatScale: 0.8,
+                heatDiffusion: 0.8,
+                heatBaseRadius: 0.8,
+                waveVeilleOpacity: 0.12,
+                compVeilleOpacity: 0.15,
+                rareVeilleOpacity: 0.12,
             }
         };
 
@@ -308,73 +329,53 @@
 
         // ═══════════════════════════════════════════════════════
         // QTALN — VERSION PHYSIQUEMENT FONDÉE
-        // Connexion : Newton-Laplace-Poisson-Biot + acoustique réelle
         // ═══════════════════════════════════════════════════════
-
         const QTALN = {
-            // ─── Variables d'état (toutes initialisées à 0, pas de magic numbers) ───
-            coherenceL: 0,      // Cohérence temporelle du signal (corrélation trame-trame)
-            envE: 0,            // Énergie spectrale dans la bande de parole (250-2000 Hz)
-            observerO: 0,       // Couplage géométrique caméra ↔ sources
-            entropy: 0,         // Entropie de Shannon du spectre (0=pur, 1=bruit blanc)
-            temporalCorrelation: 0, // Corrélation temporelle brute (-1→1)
-            rhythm: 0,          // Énergie mécanique acoustique (ρv²/2)
-            posterior: 0,       // Non utilisé (gardé pour compatibilité, = likelihood lissée)
-            decoherence: 0,     // Taux de dissipation acoustique (viscosité + entropie + instabilité)
-            rhythmPhase: 0,     // Phase pour animation oscillante
-            state: 0,           // État global = energy final
-            
-            // ─── Données audio précédentes pour corrélation temporelle ───
+            coherenceL: 0,
+            envE: 0,
+            observerO: 0,
+            entropy: 0,
+            temporalCorrelation: 0,
+            rhythm: 0,
+            posterior: 0,
+            decoherence: 0,
+            rhythmPhase: 0,
+            state: 0,
             prevTimeData: null,
             
-            // ─── Constantes physiques des taux de dissipation ───
             GAMMA: {
-                viscous: 0.5,      // Amortissement visqueux de Stokes (Hz)
-                thermalBase: 0.3,  // Déphasage thermique de base
-                thermalCoeff: 0.01, // Augmentation par °C
-                molecular: 1.2      // Relaxation moléculaire O2/N2 (Hz)
+                viscous: 0.5,
+                thermalBase: 0.3,
+                thermalCoeff: 0.01,
+                molecular: 1.2
             },
 
-            // ─── Bandes de fréquences physiologiques (Bark simplifié) ───
             BANDS: [
                 { name: 'infra', min: 0, max: 20, weight: 0 },
                 { name: 'basse', min: 20, max: 250, weight: 0.3 },
-                { name: 'medium', min: 250, max: 2000, weight: 0.5 },  // Parole
+                { name: 'medium', min: 250, max: 2000, weight: 0.5 },
                 { name: 'aigu', min: 2000, max: 8000, weight: 0.2 }
             ],
 
-            // ═══════════════════════════════════════════════════════
-            // 1. COHÉRENCE TEMPORELLE RÉELLE (corrélation trame-trame)
-            // ═══════════════════════════════════════════════════════
             computeTemporalCoherence(timeData) {
                 if (!this.prevTimeData || this.prevTimeData.length !== timeData.length) {
                     this.prevTimeData = new Float32Array(timeData);
-                    return 0.5; // neutre au démarrage
+                    return 0.5;
                 }
-                
                 let dot = 0, normA = 0, normB = 0;
                 for (let i = 0; i < timeData.length; i++) {
                     dot += timeData[i] * this.prevTimeData[i];
                     normA += timeData[i] * timeData[i];
                     normB += this.prevTimeData[i] * this.prevTimeData[i];
                 }
-                
-                // Coefficient de corrélation de Pearson
                 let correlation = 0;
                 if (normA > 1e-10 && normB > 1e-10) {
                     correlation = dot / Math.sqrt(normA * normB);
                 }
-                
-                // Stocker pour prochaine frame
                 this.prevTimeData = new Float32Array(timeData);
-                
-                // Mapper [-1, 1] → [0, 1] (0.5 = bruit, 1 = parfaitement périodique)
                 return 0.5 + 0.5 * Math.max(-1, Math.min(1, correlation));
             },
 
-            // ═══════════════════════════════════════════════════════
-            // 2. ANALYSE SPECTRALE RÉELLE (énergie par bande + entropie Shannon)
-            // ═══════════════════════════════════════════════════════
             computeSpectralEnergy(fftData, sampleRate) {
                 const nyquist = sampleRate / 2;
                 const binWidth = nyquist / fftData.length;
@@ -383,11 +384,9 @@
                 
                 for (let i = 0; i < fftData.length; i++) {
                     const freq = i * binWidth;
-                    const amp = Math.pow(10, fftData[i] / 20); // dB → linéaire
-                    const energy = amp * amp; // énergie ∝ amplitude²
-                    
+                    const amp = Math.pow(10, fftData[i] / 20);
+                    const energy = amp * amp;
                     totalEnergy += energy;
-                    
                     for (let b = 0; b < this.BANDS.length; b++) {
                         if (freq >= this.BANDS[b].min && freq < this.BANDS[b].max) {
                             bandEnergy[b] += energy * this.BANDS[b].weight;
@@ -396,7 +395,6 @@
                     }
                 }
                 
-                // ─── ENTROPIE DE SHANNON RÉELLE ───
                 let shannonEntropy = 0;
                 if (totalEnergy > 1e-10) {
                     for (let b = 0; b < this.BANDS.length; b++) {
@@ -411,17 +409,12 @@
                     totalEnergy,
                     spectralEntropy: Math.max(0, Math.min(1, normalizedEntropy)),
                     bandEnergy: bandEnergy.map(e => totalEnergy > 0 ? e / totalEnergy : 0),
-                    mediumEnergy: totalEnergy > 0 ? bandEnergy[2] / totalEnergy : 0 // bande medium
+                    mediumEnergy: totalEnergy > 0 ? bandEnergy[2] / totalEnergy : 0
                 };
             },
 
-            // ═══════════════════════════════════════════════════════
-            // 3. COUPLAGE GÉOMÉTRIQUE OBSERVATEUR (caméra ↔ sources)
-            // ═══════════════════════════════════════════════════════
             computeObserverCoupling(camera, sourcePositions) {
                 if (!camera || !sourcePositions || sourcePositions.length === 0) return 0.5;
-                
-                // Distance moyenne caméra ↔ sources
                 const camPos = camera.position;
                 let totalDist = 0;
                 sourcePositions.forEach(pos => {
@@ -431,144 +424,81 @@
                     totalDist += Math.sqrt(dx*dx + dy*dy + dz*dz);
                 });
                 const avgDist = totalDist / sourcePositions.length;
-                
-                // Couplage distance : proche = fort (1), loin = faible (0)
-                // Plage typique : 5-30 unités 3D
                 const distCoupling = Math.max(0, Math.min(1, 1 - (avgDist - 5) / 25));
-                
-                // Alignement de vue : face au centre = meilleur
                 const viewDir = new THREE.Vector3();
                 camera.getWorldDirection(viewDir);
                 const toCenter = new THREE.Vector3(0, 0, 0).sub(camPos).normalize();
                 const alignment = Math.max(0, viewDir.dot(toCenter));
-                
                 return distCoupling * (0.3 + 0.7 * alignment);
             },
 
-            // ═══════════════════════════════════════════════════════
-            // 4. DÉCOHÉRENCE ACOUSTIQUE RÉELLE (viscosité + entropie + instabilité)
-            // ═══════════════════════════════════════════════════════
             computeAcousticDecoherence(temperature, gamma, spectralEntropy, temporalCoherence, vt) {
-                // ─── Viscosité de l'air (Sutherland) ───
                 const T_kelvin = 273.15 + temperature;
-                const mu0 = 1.716e-5; // Pa·s à 273.15K
-                const C = 111; // constante de Sutherland
+                const mu0 = 1.716e-5;
+                const C = 111;
                 const viscosity = mu0 * (273.15 + C) / (T_kelvin + C) * Math.pow(T_kelvin / 273.15, 1.5);
-                
-                // ─── Nombre de Knudsen acoustique ───
-                const freqRef = 440; // Hz de référence
+                const freqRef = 440;
                 const wavelength = vt / Math.max(freqRef, 1);
                 const knudsen = viscosity / (1.225 * vt * wavelength);
-                
-                // ─── Taux de dissipation physiques ───
                 const thermalRate = this.GAMMA.thermalBase + this.GAMMA.thermalCoeff * Math.max(0, temperature);
                 const viscousDissipation = this.GAMMA.viscous * knudsen * 1000;
                 const thermalDissipation = thermalRate * 0.3;
                 const molecularDissipation = this.GAMMA.molecular * 0.2;
-                
-                // ─── Dissipation du signal ───
-                // Signal chaotique (haute entropie) ET instable (basse cohérence) = plus de dissipation
                 const signalDissipation = spectralEntropy * (1 - temporalCoherence);
-                
-                // ─── Total ───
                 const totalDecoherence = 0.05 
                     + viscousDissipation * 0.25 
                     + thermalDissipation * 0.15
                     + molecularDissipation * 0.10
                     + signalDissipation * 0.45;
-                
                 return Math.max(0.05, Math.min(0.85, totalDecoherence));
             },
 
-            // ═══════════════════════════════════════════════════════
-            // 5. ÉNERGIE MÉCANIQUE ACOUSTIQUE (ρv²/2)
-            // ═══════════════════════════════════════════════════════
             computeAcousticEnergy(rms, vt, temperature) {
-                // Densité de l'air en fonction de la température
                 const rho = 1.293 * 273.15 / (273.15 + temperature);
-                
-                // Vitesse des particules = amplitude × vitesse du son (approximation linéaire)
                 const particleVelocity = rms * vt;
-                
-                // Énergie volumique : E = ½ρv²
                 const energyDensity = 0.5 * rho * particleVelocity * particleVelocity;
-                
-                // Normalisation (référence : 1 m/s de vitesse particulaire à 20°C)
                 const refEnergy = 0.5 * 1.293 * 343 * 343 * 0.001;
                 return Math.max(0, Math.min(1, energyDensity / refEnergy));
             },
 
-            // ═══════════════════════════════════════════════════════
-            // MISE À JOUR PRINCIPALE — Appelée chaque frame audio
-            // ═══════════════════════════════════════════════════════
             update(audioRms, audioFreqMean, sourceCount, camera, sourcePositions, 
                    timeData, freqData, sampleRate, temperature, gamma, vt) {
-                
-                // 1. Cohérence temporelle réelle
                 const temporalCoherence = this.computeTemporalCoherence(timeData);
                 this.coherenceL = this.coherenceL * 0.92 + temporalCoherence * 0.08;
-                
-                // 2. Analyse spectrale réelle
                 const spectral = this.computeSpectralEnergy(freqData, sampleRate);
-                this.entropy = spectral.spectralEntropy; // VRAIE entropie de Shannon
-                
-                // 3. Énergie environnementale = énergie dans la bande medium (parole)
+                this.entropy = spectral.spectralEntropy;
                 this.envE = this.envE * 0.85 + spectral.mediumEnergy * 0.15;
-                
-                // 4. Couplage observateur (géométrie 3D)
                 const observerCoupling = this.computeObserverCoupling(camera, sourcePositions);
                 this.observerO = this.observerO * 0.82 + observerCoupling * 0.18;
-                
-                // 5. Décohérence acoustique réelle
                 this.decoherence = this.computeAcousticDecoherence(
                     temperature, gamma, this.entropy, temporalCoherence, vt
                 );
-                
-                // 6. Énergie mécanique du son
                 const rmsClamped = Math.min(1.0, audioRms * 1.15);
                 const acousticEnergy = this.computeAcousticEnergy(rmsClamped, vt, temperature);
-                
-                // 7. Rythme = énergie mécanique atténuée par décohérence
                 this.rhythm = acousticEnergy * (1 - this.decoherence * 0.35);
                 this.rhythmPhase += 0.065 * this.rhythm;
-                
-                // 8. Posterior = likelihood lissée (compatibilité, non utilisé dans energy)
                 const likelihood = rmsClamped * 0.8 + (audioFreqMean / 1600) * 0.2;
                 this.posterior = this.posterior * 0.65 + likelihood * 0.35;
-                
-                // 9. État global = énergie finale
                 this.state = this.rhythm * this.envE * this.observerO * (1 - this.decoherence * 0.5);
-                
                 return this;
             },
 
-            // ═══════════════════════════════════════════════════════
-            // SORTIE — Contrôle de l'animation 3D
-            // ═══════════════════════════════════════════════════════
             getControl() {
-                // Energy = énergie mécanique × couplage environnemental × couplage observateur
-                //          atténué par dissipation thermique et entropique
                 const energy = this.rhythm 
                              * (0.45 + 0.55 * this.envE) 
                              * this.observerO 
                              * (1.0 - this.decoherence * 0.65);
-
                 return {
-                    // ─── Variables physiques réelles ───
-                    rhythm: this.rhythm,              // Énergie mécanique (0→1)
-                    env: this.envE,                   // Énergie spectrale medium (0→1)
-                    coherence: this.coherenceL,       // Cohérence temporelle (0→1)
-                    coupling: this.observerO,         // Couplage caméra (0→1)
-                    posterior: this.posterior,        // Likelihood lissée (compatibilité)
-                    decoherence: this.decoherence,    // Taux de dissipation (0→0.85)
-                    entropy: this.entropy,            // Entropie spectrale Shannon (0→1)
-                    state: this.state,                // État composite (0→1)
-                    
-                    // ─── Sortie finale pour animation ───
+                    rhythm: this.rhythm,
+                    env: this.envE,
+                    coherence: this.coherenceL,
+                    coupling: this.observerO,
+                    posterior: this.posterior,
+                    decoherence: this.decoherence,
+                    entropy: this.entropy,
+                    state: this.state,
                     energy: Math.max(0.03, Math.min(1.0, energy)),
                     rhythmPhase: this.rhythmPhase,
-                    
-                    // ─── Métriques physiques pour debug/affichage ───
                     physics: {
                         acousticEnergy: this.rhythm,
                         spectralEntropy: this.entropy,
@@ -581,6 +511,70 @@
         };
 
         // ═══════════════════════════════════════════════════════
+        // THERMOACOUSTIQUE — CHAMP THERMIQUE VISIBLE
+        // ═══════════════════════════════════════════════════════
+        let ambientTemperature = 20;
+        let sourceHeatField = [];
+        let heatHalos = [];
+        let heatSliderValue = 1.5;
+        let maxHeatDisplay = 0;
+
+        function initHeatField() {
+            sourceHeatField = sourcePositions.map(() => 0);
+            heatHalos.forEach(h => { scene.remove(h); h.geometry.dispose(); h.material.dispose(); });
+            heatHalos = [];
+            
+            const config = modeConfig;
+            const baseSize = config.sourceSize;
+            const heatSize = baseSize * (1 + config.heatDiffusion * 1.5);
+            
+            sourcePositions.forEach((pos, i) => {
+                const geometry = new THREE.SphereGeometry(heatSize, 32, 32);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xff2200,
+                    transparent: true,
+                    opacity: 0.0,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false,
+                    side: THREE.DoubleSide
+                });
+                const halo = new THREE.Mesh(geometry, material);
+                halo.position.set(...pos);
+                scene.add(halo);
+                heatHalos.push(halo);
+            });
+        }
+
+        function updateHeatField(qtalnEnergy, dt, heatScale) {
+            const heatInput = qtalnEnergy * 20 * heatScale;
+            
+            sourceHeatField.forEach((heat, i) => {
+                const target = heatInput * (0.7 + 0.3 * Math.sin(performance.now() * 0.001 + i * 1.2));
+                sourceHeatField[i] = heat * 0.92 + target * 0.08;
+            });
+            
+            maxHeatDisplay = Math.max(0, ...sourceHeatField);
+        }
+
+        function getLocalTemperature(x, y, z, baseTemp) {
+            let localTemp = baseTemp;
+            const alpha = 2.0e-5;
+            const time = performance.now() / 1000;
+            
+            sourcePositions.forEach((pos, i) => {
+                const dx = x - pos[0];
+                const dy = y - pos[1];
+                const dz = z - pos[2];
+                const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                const sigma = Math.sqrt(4 * alpha * time * 100);
+                const contribution = sourceHeatField[i] * Math.exp(-dist*dist / (2 * sigma * sigma + 0.01));
+                localTemp += contribution;
+            });
+            
+            return localTemp;
+        }
+
+        // ═══════════════════════════════════════════════════════
         // DOM REFS
         // ═══════════════════════════════════════════════════════
         const $ = id => document.getElementById(id);
@@ -589,11 +583,12 @@
             tempSlider: $('temp-slider'), tempValue: $('temp-value'),
             gammaSlider: $('gamma-slider'), gammaValue: $('gamma-value'),
             sensSlider: $('sens-slider'), sensValue: $('sens-value'),
+            heatSlider: $('heat-slider'), heatValue: $('heat-value'),
             playBtn: $('play-btn'), pauseBtn: $('pause-btn'), stopBtn: $('stop-btn'),
             audioFile: $('audio-file'), audioStatus: $('audio-status'), audioTime: $('audio-time'),
             spectrumBars: $('spectrum-bars'), pedalTemp: $('pedal-temp'), pedalFreq: $('pedal-freq'),
             pedalSpeed: $('pedal-speed'), rmsBar: $('rms-bar'), waveStatus: $('wave-status'),
-            pedalDisp: $('pedal-disp'), modeBtn: $('mode-btn'),
+            pedalDisp: $('pedal-disp'), pedalHeat: $('pedal-heat'), modeBtn: $('mode-btn'),
         };
 
         console.log('✅ DOM elements loaded');
@@ -725,6 +720,7 @@
         let qtalnEnergy = 0;
 
         function rebuildScene() {
+            // Nettoyer les groupes
             while(molGroup.children.length > 0) {
                 const child = molGroup.children[0];
                 child.geometry?.dispose();
@@ -757,12 +753,11 @@
 
             const config = modeConfig;
 
-            const MOL_SIZE = config.molSize;
             const SOURCE_SIZE = config.sourceSize;
             const COMP_SIZE = config.compSize;
             const RARE_SIZE = config.rareSize;
             const WAVE_BASE = config.waveBase;
-            const WAVE_OPACITY = config.waveOpacity;
+            const MOL_SIZE = config.molSize;
 
             MOL_COUNT = config.moleculeCount;
 
@@ -775,6 +770,7 @@
                 sourcePositions.push([Math.cos(a) * r, 0.05 * (i % 2 - 0.5), Math.sin(a) * r]);
             }
 
+            // Sources
             sources = [];
             sourcePositions.forEach((pos, i) => {
                 const geo = new THREE.SphereGeometry(SOURCE_SIZE, 28, 28);
@@ -792,6 +788,7 @@
                 sources.push({ mesh, basePos: pos, phase: i * 1.1 });
             });
 
+            // Compression / Raréfaction — avec opacités augmentées
             if (config.showCompression) {
                 sourcePositions.forEach((pos, i) => {
                     const cGeo = new THREE.SphereGeometry(COMP_SIZE, 28, 28);
@@ -830,6 +827,7 @@
                 });
             }
 
+            // Molécules
             const molGeo = new THREE.SphereGeometry(MOL_SIZE, 8, 8);
             const molMat = new THREE.MeshStandardMaterial({
                 color: 0xfbbf24,
@@ -860,6 +858,7 @@
                 });
             }
 
+            // Flèches
             const arrowSize = Math.max(0.06, MOL_SIZE * 0.5 * config.arrowScale);
             const arrowGeo2 = new THREE.ConeGeometry(arrowSize * 0.8, arrowSize * 2.0, 4);
             moleculeMeshes.forEach((m) => {
@@ -871,13 +870,14 @@
                 arrowMeshes.push(arrow);
             });
 
+            // Fronts d'onde — visible même en veille
             sourcePositions.forEach(pos => {
                 for (let i = 0; i < 2; i++) {
                     const geo = new THREE.SphereGeometry(WAVE_BASE * 0.7, 20, 20);
                     const mat = new THREE.MeshBasicMaterial({
                         color: 0x00d4ff,
                         transparent: true,
-                        opacity: 0.06,
+                        opacity: config.waveVeilleOpacity || 0.15,
                         wireframe: true
                     });
                     const mesh = new THREE.Mesh(geo, mat);
@@ -887,7 +887,13 @@
                 }
             });
 
+            // Initialiser le champ thermique
+            initHeatField();
+
             console.log(`✅ Scene rebuilt: ${sources.length} sources, ${MOL_COUNT} molecules`);
+            console.log(`📏 Source: ${SOURCE_SIZE}, Comp: ${COMP_SIZE}, Rare: ${RARE_SIZE}, Wave: ${WAVE_BASE}`);
+            console.log(`🎨 Opacités: Comp=${config.compOpacity}, Rare=${config.rareOpacity}, Wave=${config.waveOpacity}`);
+            console.log(`🌙 Veille: Comp=${config.compVeilleOpacity || 0.15}, Rare=${config.rareVeilleOpacity || 0.12}, Wave=${config.waveVeilleOpacity || 0.15}`);
         }
 
         // ═══════════════════════════════════════════════════════
@@ -969,7 +975,7 @@
         // ═══════════════════════════════════════════════════════
         let pressureField = new Float32Array(0);
 
-        function updatePressureField(time, freqs, amps, phases, c, sens, qtalnControl) {
+        function updatePressureField(time, freqs, amps, phases, c, sens, qtalnControl, localTemperatures) {
             const count = moleculeMeshes.length;
             if (pressureField.length !== count) {
                 pressureField = new Float32Array(count);
@@ -988,6 +994,10 @@
 
             for (let i = 0; i < count; i++) {
                 const d = moleculeData[i];
+                const localT = localTemperatures[i] || 20;
+                const { vt: localVt } = computeSpeed(localT, 1.402);
+                const speedRatio = localVt / 343;
+                
                 let p = 0;
 
                 for (let s = 0; s < sources.length; s++) {
@@ -1001,9 +1011,9 @@
                     for (let k = 0; k < numFreqs; k++) {
                         const f = Math.max(30, freqs[k] || 440);
                         const omega = 2 * Math.PI * f;
-                        const lambda = c / Math.max(f, 1);
+                        const lambda = localVt / Math.max(f, 1);
                         const k_wave = 2 * Math.PI / Math.max(lambda, 0.01);
-                        const delay = dist / Math.max(c, 1);
+                        const delay = dist / Math.max(localVt, 1);
                         const baseAmp = Math.min(1, (amps[k] || 0.01) * 0.5 / (1 + dist * 0.12));
 
                         const qMod = qRhythm * (0.3 + 0.7 * qtalnControl.env);
@@ -1015,7 +1025,7 @@
                 }
 
                 const r = Math.sqrt(d.baseX*d.baseX + d.baseZ*d.baseZ);
-                p *= Math.max(0.1, 1 - r / 8);
+                p *= Math.max(0.1, 1 - r / 8) * (1 + 0.02 * (localT - 20) * 0.1);
 
                 newPressure[i] = p * sens * 1.2;
             }
@@ -1148,14 +1158,14 @@
                 const t = parseFloat(els.tempSlider.value);
                 const gamma = parseFloat(els.gammaSlider.value);
                 const sens = parseFloat(els.sensSlider.value);
+                const heatScale = parseFloat(els.heatSlider.value);
+                heatSliderValue = heatScale;
                 const { v0, vt } = computeSpeed(t, gamma);
                 const speedRatio = vt / v0;
 
                 const rmsVal = Math.min(1, AudioState.rms * 2);
 
-                // ═══════════════════════════════════════════════
-                // QTALN UPDATE — Version physiquement fondée
-                // ═══════════════════════════════════════════════
+                // QTALN UPDATE
                 const qtalnControl = QTALN.update(
                     rmsVal,
                     freqMean,
@@ -1172,10 +1182,40 @@
                 qtalnEnergy = qtalnControl.energy;
                 hasActiveAudio = qtalnEnergy > 0.005;
 
-                // ─── Connexion physique : vitesse du son → animation ───
-                const waveSpeed = vt * 0.03;
+                // ─── THERMOACOUSTIQUE ───
+                ambientTemperature = t;
+                updateHeatField(qtalnEnergy, 0.016, heatScale);
+
+                // Halos de chaleur
+                heatHalos.forEach((halo, i) => {
+                    const heat = sourceHeatField[i] || 0;
+                    const scaledHeat = heat * heatScale;
+                    
+                    const expansion = 1.0 + scaledHeat * 0.4;
+                    halo.scale.setScalar(expansion);
+                    halo.material.opacity = Math.min(0.45, scaledHeat * 0.06);
+                    const tempRatio = Math.min(1, scaledHeat / 12);
+                    const hue = 0.6 - tempRatio * 0.6;
+                    const lightness = 0.3 + tempRatio * 0.4;
+                    halo.material.color.setHSL(Math.max(0, Math.min(0.6, hue)), 1.0, lightness);
+                    halo.rotation.x += 0.001 * (1 + scaledHeat * 0.02);
+                    halo.rotation.y += 0.002 * (1 + scaledHeat * 0.02);
+                });
+
+                // ─── Connexion physique ───
                 const molecularDisplacementScale = 1 / Math.sqrt(Math.max(0.1, speedRatio));
                 const compressionScale = Math.sqrt(Math.max(0.1, speedRatio));
+
+                // ─── Températures locales ───
+                const localTemperatures = moleculeMeshes.map((mesh, i) => {
+                    const d = moleculeData[i];
+                    return getLocalTemperature(d.baseX, d.baseY, d.baseZ, ambientTemperature);
+                });
+
+                if (els.pedalHeat) {
+                    const avgHeat = sourceHeatField.reduce((a, b) => a + b, 0) / Math.max(1, sourceHeatField.length);
+                    els.pedalHeat.textContent = `+${(avgHeat * heatScale).toFixed(1)} °C`;
+                }
 
                 if (els.rmsBar) {
                     els.rmsBar.style.width = Math.min(100, rmsVal * 120 * sens) + '%';
@@ -1229,17 +1269,24 @@
                     AudioState.getCurrentTime(),
                     freqs, amps, phases,
                     vt, sens,
-                    qtalnControl
+                    qtalnControl,
+                    localTemperatures
                 );
 
                 const config = modeConfig;
                 const maxDisp = 0.015 * config.displacementScale * 120 * sens * molecularDisplacementScale;
                 const count = moleculeMeshes.length;
 
+                // ─── ANIMATION DES MOLÉCULES ───
                 for (let i = 0; i < count; i++) {
                     const p = pressure[i] || 0;
                     const d = moleculeData[i];
-                    const disp = p * maxDisp;
+                    const localT = localTemperatures[i] || 20;
+                    const thermalAmp = 1.0 / Math.sqrt(Math.max(0.1, (273.15 + localT) / 293.15));
+                    const thermalFreq = 1.0 + (localT - ambientTemperature) * 0.015;
+                    
+                    const disp = p * maxDisp * thermalAmp;
+                    const phaseShift = d.phase + performance.now() * 0.001 * thermalFreq;
 
                     const r = Math.sqrt(d.baseX*d.baseX + d.baseZ*d.baseZ);
                     if (r > 0.01) {
@@ -1253,6 +1300,10 @@
                         moleculeMeshes[i].position.y = d.baseY + disp * 0.12;
                         moleculeMeshes[i].position.z = d.baseZ + disp * 0.3;
                     }
+
+                    const heatFactor = Math.max(0, Math.min(1, (localT - ambientTemperature) / 5));
+                    const molColor = new THREE.Color().setHSL(0.12 - heatFactor * 0.1, 0.8, 0.5 + heatFactor * 0.2);
+                    moleculeMeshes[i].material.color.copy(molColor);
 
                     const arrow = arrowMeshes[i];
                     if (arrow && config.showVectors) {
@@ -1281,42 +1332,55 @@
                     const pulse = 1 + config.sourcePulse * rmsVal * sens * qtalnControl.rhythm * Math.sin(now * 4 + s.phase);
                     s.mesh.scale.setScalar(config.sourceSize * pulse);
                     s.mesh.material.emissiveIntensity = 0.3 + 1.2 * rmsVal * sens * qtalnControl.env;
+                    
+                    const heat = sourceHeatField[i] || 0;
+                    const heatColor = new THREE.Color().setHSL(0.6 - heat * 0.04 * heatScale, 0.8, 0.3 + heat * 0.02 * heatScale);
+                    s.mesh.material.color.lerp(heatColor, 0.1);
                 });
 
-                // ═══════════════════════════════════════════════
-                // COMPRESSION / RARÉFACTION — Avec couplage physique
-                // ═══════════════════════════════════════════════
+                // ─── COMPRESSION / RARÉFACTION — VISIBLES ───
                 if (config.showCompression) {
                     const countMol = moleculeMeshes.length || 1;
-                    const compScalePhys = config.compSize * compressionScale;
-                    const rareScalePhys = config.rareSize * compressionScale;
-
+                    const baseSize = config.sourceSize;
+                    const maxComp = baseSize * 1.8; // Augmenté: 1.5 → 1.8
+                    const compPulse = 1 + 0.3 * rmsVal * qtalnControl.rhythm;
+                    
                     compMeshes.forEach((c, i) => {
                         const idx = Math.floor(i * countMol / Math.max(1, compMeshes.length));
                         let p = pressure[idx] || 0;
-                        p = p * 1.35;
-                        const scale = compScalePhys * (1 + Math.max(0, p) * 3.2);
-                        c.mesh.scale.setScalar(Math.max(0.09, scale));
+                        const localT = localTemperatures[idx] || 20;
+                        const thermalBoost = 1 + 0.01 * (localT - ambientTemperature);
+                        p = p * 1.35 * thermalBoost;
+                        const scale = Math.min(maxComp, config.compSize * compPulse * (1 + Math.max(0, p) * 1.5));
+                        c.mesh.scale.setScalar(Math.max(0.08, scale));
+                        // Opacité dynamique: veille + modulation audio
+                        const baseOpacity = config.compVeilleOpacity || 0.3;
                         const audioMod = hasActiveAudio ? Math.abs(p) * 0.45 : 0;
-                        c.mesh.material.opacity = Math.min(0.78, config.compOpacity + audioMod);
+                        c.mesh.material.opacity = Math.min(0.78, baseOpacity + audioMod);
                         c.mesh.material.emissiveIntensity = 0.09 + Math.max(0, p) * 0.4;
                     });
                     
                     rareMeshes.forEach((r, i) => {
                         const idx = Math.floor(i * countMol / Math.max(1, rareMeshes.length));
                         let p = pressure[idx] || 0;
-                        p = p * 1.35;
-                        const scale = rareScalePhys * (1 + Math.max(0, -p) * 3.0);
-                        r.mesh.scale.setScalar(Math.max(0.06, scale));
+                        const localT = localTemperatures[idx] || 20;
+                        const thermalBoost = 1 + 0.01 * (localT - ambientTemperature);
+                        p = p * 1.35 * thermalBoost;
+                        const rarePulse = 1 - 0.2 * rmsVal * qtalnControl.rhythm;
+                        const scale = Math.max(baseSize * 0.3, config.rareSize * rarePulse * (1 + Math.max(0, -p) * 1.2));
+                        r.mesh.scale.setScalar(Math.max(0.05, scale));
+                        const baseOpacity = config.rareVeilleOpacity || 0.25;
                         const audioMod = hasActiveAudio ? Math.abs(p) * 0.42 : 0;
-                        r.mesh.material.opacity = Math.min(0.70, config.rareOpacity + audioMod * 1.2);
+                        r.mesh.material.opacity = Math.min(0.70, baseOpacity + audioMod * 1.2);
                         r.mesh.material.emissiveIntensity = 0.07 + Math.max(0, -p) * 0.38;
                     });
                 }
 
-                // FRONTS D'ONDE
-                const waveBase = config.waveBase * compressionScale;
+                // ─── FRONTS D'ONDE — TOUJOURS VISIBLES ───
+                const waveBase = config.waveBase;
                 const waveGrowth = config.waveGrowth;
+                const wavelength = vt / Math.max(domFreq, 20);
+                const waveVeilleOpacity = config.waveVeilleOpacity || 0.15;
 
                 for (let i = wavefronts.length - 1; i >= 0; i--) {
                     const wf = wavefronts[i];
@@ -1332,17 +1396,19 @@
 
                     if (hasActiveAudio) {
                         const qEnergy = qtalnControl.energy;
-                        const radius = waveBase + p * waveGrowth * (0.3 + 0.7 * qEnergy) * 1.5;
+                        const lambdaScale = Math.max(0.5, wavelength / 2);
+                        const radius = waveBase + p * waveGrowth * lambdaScale * 0.2 * (0.3 + 0.7 * qEnergy);
                         wf.mesh.scale.setScalar(Math.max(waveBase, radius));
                         const op = Math.sin(p * Math.PI) * config.waveOpacity * (0.3 + 0.7 * qEnergy) * 1.8;
-                        wf.mesh.material.opacity = Math.max(0.02, Math.min(0.6, op));
+                        wf.mesh.material.opacity = Math.max(0.05, Math.min(0.8, op));
                         if (domFreq > 20) {
                             const hue = 0.55 + Math.min(0.3, domFreq / 5000);
                             wf.mesh.material.color.setHSL(Math.min(0.85, hue), 0.85, 0.6);
                         }
                     } else {
-                        wf.mesh.material.opacity = 0.06;
-                        wf.mesh.scale.setScalar(waveBase * 0.7);
+                        // Veille: visible avec opacité réduite
+                        wf.mesh.material.opacity = waveVeilleOpacity;
+                        wf.mesh.scale.setScalar(waveBase * 0.8);
                     }
                 }
 
@@ -1470,7 +1536,7 @@
                 els.waveStatus.textContent = '⏸ Pause';
                 els.waveStatus.className = 'wave-status paused';
             }
-            wavefronts.forEach(wf => { wf.mesh.material.opacity = 0.06; });
+            wavefronts.forEach(wf => { wf.mesh.material.opacity = modeConfig.waveVeilleOpacity || 0.15; });
         }
 
         function stopAudio() {
@@ -1499,13 +1565,19 @@
             if (els.pedalFreq) els.pedalFreq.textContent = '— Hz';
             if (els.rmsBar) els.rmsBar.style.width = '2%';
             if (els.pedalDisp) els.pedalDisp.textContent = '~10 pm';
+            if (els.pedalHeat) els.pedalHeat.textContent = '+0.0 °C';
             const bars = els.spectrumBars ? els.spectrumBars.children : [];
             for (let i = 0; i < bars.length; i++) bars[i].style.height = '2px';
             arrowMeshes.forEach(a => { a.visible = false; });
             wavefronts.forEach(wf => { 
-                wf.mesh.material.opacity = 0.06;
-                wf.mesh.scale.setScalar(modeConfig.waveBase * 0.7);
+                wf.mesh.material.opacity = modeConfig.waveVeilleOpacity || 0.15;
+                wf.mesh.scale.setScalar(modeConfig.waveBase * 0.8);
             });
+            heatHalos.forEach(halo => {
+                halo.material.opacity = 0;
+                halo.scale.setScalar(1);
+            });
+            sourceHeatField = sourceHeatField.map(() => 0);
             drawWaveGraph(0);
         }
 
@@ -1539,14 +1611,18 @@
                     compMeshes.forEach((c, i) => {
                         const pulse = 1 + 0.05 * Math.sin(t * 0.8 + c.phase);
                         c.mesh.scale.setScalar(config.compSize * pulse);
-                        c.mesh.material.opacity = config.compOpacity * 0.6;
+                        c.mesh.material.opacity = config.compVeilleOpacity || 0.3;
                     });
                     rareMeshes.forEach((r, i) => {
                         const pulse = 1 - 0.05 * Math.sin(t * 0.7 + r.phase);
                         r.mesh.scale.setScalar(config.rareSize * Math.max(0.3, pulse));
-                        r.mesh.material.opacity = config.rareOpacity * 0.6;
+                        r.mesh.material.opacity = config.rareVeilleOpacity || 0.25;
                     });
                 }
+                
+                heatHalos.forEach(halo => {
+                    halo.material.opacity = 0.01;
+                });
             }
 
             renderer.render(scene, camera);
@@ -1560,6 +1636,7 @@
                 const t = parseFloat(els.tempSlider.value);
                 const gamma = parseFloat(els.gammaSlider.value);
                 const sens = parseFloat(els.sensSlider.value);
+                const heat = parseFloat(els.heatSlider.value);
                 const { v0, vt } = computeSpeed(t, gamma);
                 if (els.v0) els.v0.textContent = v0.toFixed(2) + ' m/s';
                 if (els.vt) els.vt.textContent = vt.toFixed(2) + ' m/s';
@@ -1568,6 +1645,7 @@
                 if (els.tempValue) els.tempValue.textContent = t + '°C';
                 if (els.gammaValue) els.gammaValue.textContent = gamma.toFixed(3);
                 if (els.sensValue) els.sensValue.textContent = sens.toFixed(1);
+                if (els.heatValue) els.heatValue.textContent = heat.toFixed(1);
                 if (els.pedalTemp) els.pedalTemp.textContent = t + ' °C';
             } catch(e) {
                 console.warn('UI update error:', e);
@@ -1597,6 +1675,7 @@
             if (els.tempSlider) els.tempSlider.addEventListener('input', updateUI);
             if (els.gammaSlider) els.gammaSlider.addEventListener('input', updateUI);
             if (els.sensSlider) els.sensSlider.addEventListener('input', updateUI);
+            if (els.heatSlider) els.heatSlider.addEventListener('input', updateUI);
             if (els.modeBtn) els.modeBtn.addEventListener('click', toggleMode);
             if (els.audioFile) {
                 els.audioFile.addEventListener('change', e => {
@@ -1625,17 +1704,21 @@
             attachControls();
             animate();
             drawWaveGraph(0);
-            console.log('✅ QTALN FDTD v2.0 initialized successfully!');
+            console.log('✅ QTALN FDTD v2.0 — Visibilité améliorée initialisé!');
             console.log(`📐 Mode: ${modeConfig.label}`);
             console.log(`📍 Sources radius: ${modeConfig.sourceRadius} | Molecules spread: ${modeConfig.moleculeSpread}`);
             console.log(`🔵 Sources: ${sources.length} | 🟡 Molecules: ${MOL_COUNT}`);
+            console.log(`📏 Proportions physiques:`);
+            console.log(`   Source (référence): ${modeConfig.sourceSize}`);
+            console.log(`   Compression: ${modeConfig.compSize} (${(modeConfig.compSize/modeConfig.sourceSize*100).toFixed(0)}% de la source)`);
+            console.log(`   Raréfaction: ${modeConfig.rareSize} (${(modeConfig.rareSize/modeConfig.sourceSize*100).toFixed(0)}% de la source)`);
+            console.log(`   Front d'onde: ${modeConfig.waveBase} (${(modeConfig.waveBase/modeConfig.sourceSize*100).toFixed(0)}% de la source)`);
+            console.log(`🎨 Opacités:`);
+            console.log(`   Compression: ${modeConfig.compOpacity} (veille: ${modeConfig.compVeilleOpacity || 0.3})`);
+            console.log(`   Raréfaction: ${modeConfig.rareOpacity} (veille: ${modeConfig.rareVeilleOpacity || 0.25})`);
+            console.log(`   Front d'onde: ${modeConfig.waveOpacity} (veille: ${modeConfig.waveVeilleOpacity || 0.15})`);
+            console.log(`🔥 Thermoacoustique avec halos visibles - ${sourceHeatField.length} sources thermiques`);
             console.log('🧠 QTALN Engine: version physiquement fondée');
-            console.log('   - Cohérence temporelle (corrélation trame-trame)');
-            console.log('   - Entropie spectrale de Shannon (0=pur, 1=bruit)');
-            console.log('   - Énergie mécanique acoustique (ρv²/2)');
-            console.log('   - Décohérence par viscosité + entropie + instabilité');
-            console.log(`   - Couplage observateur (caméra ↔ sources) = ${QTALN.observerO.toFixed(2)}`);
-            console.log(`   - Taux de décohérence = ${QTALN.decoherence.toFixed(2)}`);
             console.log('🔬 Visualisation Audio 3D — Lombard Web Services');
             console.log('💡 Chargez un fichier audio (MP3, WAV, OGG, AAC) pour lancer la simulation');
         } catch(e) {
