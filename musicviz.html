@@ -1,0 +1,1950 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Surfaces GFF · QTALN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=JetBrains+Mono:wght@400;500&family=Inter:wght@300;400;600;800&family=Caveat:wght@400;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#05070b; --panel:#0d1117; --fg:#e6edf3; --muted:#8b949e;
+    --acc:#7ee787; --acc2:#79c0ff; --vio:#d2a8ff; --crit:#ff7b72;
+    --serif:'Cormorant Garamond',Georgia,serif;
+    --mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--fg);
+    font:14px/1.55 system-ui,sans-serif}
+  #app{display:flex;height:100vh;transition:margin-left .35s ease}
+  /* Mode cinéma : le panneau reste visible (demande utilisateur) */
+  body.cinema #hud, body.cinema #shapeLabel, body.cinema #meter, body.cinema #legend { display:none !important; }
+  #panel{width:500px;flex-shrink:0;padding:14px;background:var(--panel);
+    overflow-y:auto;border-right:1px solid #21262d;transition:margin-left .35s ease}
+  #panel h1{font-family:var(--serif);font-size:21px;font-weight:600;
+    color:var(--acc);margin-bottom:4px}
+  #panel h2{font-family:var(--serif);font-size:12.5px;font-weight:600;
+    color:var(--acc2);text-transform:uppercase;letter-spacing:.14em;
+    margin:16px 0 6px;padding-bottom:4px;border-bottom:1px solid #21262d}
+  #panel label{display:block;font-family:var(--mono);font-size:11px;
+    color:var(--muted);margin:8px 0 3px}
+  #panel input[type=range]{width:100%;accent-color:var(--acc2);height:20px;cursor:pointer}
+  #panel input[type=text],#panel input[type=url]{width:100%;margin-top:5px;padding:7px;
+    background:#161b22;color:var(--fg);border:1px solid #30363d;
+    border-radius:6px;font-family:var(--mono);font-size:12px}
+  #panel input[type=color]{width:100%;margin-top:5px;padding:4px;height:32px;
+    background:#161b22;color:var(--fg);border:1px solid #30363d;border-radius:6px;
+    font-family:var(--mono);font-size:12px}
+  #panel .val{color:var(--acc2);font-family:var(--mono);font-variant-numeric:tabular-nums}
+  #panel select,#panel button{width:100%;margin-top:5px;padding:7px;
+    background:#161b22;color:var(--fg);border:1px solid #30363d;
+    border-radius:6px;font-family:var(--mono);font-size:12px;cursor:pointer;transition:.15s}
+  #panel select:hover,#panel button:hover{background:#21262d;border-color:var(--acc2)}
+  #panel .eq{background:#05070b;border:1px solid #21262d;border-radius:6px;
+    padding:8px 10px;margin:5px 0;font-family:var(--mono);font-size:10.5px;
+    color:#c9d1d9;line-height:1.65;overflow-x:auto}
+  #panel .eq b{color:var(--acc2);font-family:var(--serif);font-size:12px}
+  #panel .sub{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-bottom:6px}
+  #panel .toggle{display:flex;align-items:center;gap:8px;margin:6px 0;
+    font-family:var(--mono);font-size:11px;color:var(--fg)}
+  #panel .toggle input{width:auto;height:auto;accent-color:var(--acc)}
+  #view{flex:1;position:relative;background:radial-gradient(ellipse at 30% 20%, #1a2233 0%, #0a0e14 40%, #05070b 100%);overflow:hidden;min-width:0}
+  #view canvas{display:block;width:100%;height:100%}
+  #hud{position:absolute;top:12px;left:12px;font-family:var(--mono);font-size:11px;
+    color:var(--muted);background:rgba(5,7,11,.82);padding:8px 12px;border-radius:6px;
+    pointer-events:none;white-space:pre;border:1px solid #21262d;z-index:2}
+  #shapeLabel{position:absolute;top:12px;right:12px;font-family:var(--mono);
+    font-size:11px;color:var(--acc);background:rgba(5,7,11,.82);
+    padding:6px 12px;border-radius:6px;border:1px solid var(--acc);z-index:2;
+    letter-spacing:.05em;text-transform:uppercase}
+  #meter{position:absolute;bottom:12px;left:12px;font-family:var(--mono);
+    font-size:11px;color:var(--muted);background:rgba(5,7,11,.82);
+    padding:8px 12px;border-radius:6px;border:1px solid #21262d;z-index:2;
+    line-height:1.7;min-width:260px}
+  #meter .bar{height:6px;background:#161b22;border-radius:3px;overflow:hidden;margin:3px 0 6px}
+  #meter .bar>div{height:100%;width:0%;background:var(--acc2);transition:width .06s linear}
+  #meter .bar.low>div{background:var(--acc)}
+  #meter .bar.mid>div{background:var(--vio)}
+  #meter .bar.high>div{background:var(--crit)}
+  #meter .bar.energy>div{background:linear-gradient(90deg,var(--acc2),var(--acc),var(--vio))}
+  #legend{position:absolute;bottom:12px;right:12px;font-family:var(--mono);
+    font-size:11px;color:var(--muted);background:rgba(5,7,11,.82);padding:8px 12px;
+    border-radius:6px;border:1px solid #21262d;z-index:2}
+  .sw{display:inline-block;width:10px;height:10px;margin-right:6px;
+    vertical-align:middle;border-radius:2px}
+  #audioStatus{font-family:var(--mono);font-size:10.5px;color:var(--muted);
+    margin-top:6px;min-height:14px;line-height:1.5}
+  #fileInput{display:none}
+  #spectrumWrap{margin-top:8px;background:#05070b;border:1px solid #21262d;
+    border-radius:6px;padding:6px 8px}
+  #spectrumWrap .lbl{font-family:var(--mono);font-size:9.5px;color:var(--muted);
+    display:flex;justify-content:space-between;margin-bottom:4px}
+  #spectrumCanvas{width:100%;height:56px;display:block;border-radius:3px}
+  #specLegend{display:flex;gap:8px;margin-top:4px;font-family:var(--mono);
+    font-size:9px;color:var(--muted)}
+  #specLegend span{display:flex;align-items:center;gap:3px}
+  #specLegend .dot{width:7px;height:7px;border-radius:50%}
+  #cinemaBtn{position:absolute;top:12px;right:12px;z-index:100;
+    font-family:var(--mono);font-size:11px;padding:7px 14px;
+    background:rgba(5,7,11,.85);color:var(--fg);border:1px solid #30363d;
+    border-radius:6px;cursor:pointer;transition:.15s}
+  #cinemaBtn:hover{background:#161b22;border-color:var(--acc2)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="panel">
+    <h1>Surfaces GFF · QTALN v15</h1>
+    <div class="sub">GFF · FFT multi-bande · morphing · trou noir</div>
+
+    <h2>Surface</h2>
+    <select id="surfC">
+      <option value="sphere" selected>Sphère de Gauss</option>
+      <option value="torus">Tore</option>
+      <option value="mobius">Möbius</option>
+      <option value="catenoid">Caténoïde</option>
+    </select>
+    <div class="toggle"><input type="checkbox" id="morphCycle" checked><label style="margin:0">Morphing cyclique auto</label></div>
+    <label>Sens du morphing</label>
+    <select id="morphDirection">
+      <option value="forward" selected>Avant (sphère → tore → Möbius → caténoïde)</option>
+      <option value="backward">Arrière (caténoïde → Möbius → tore → sphère)</option>
+    </select>
+    <label>Période morphing (s) : <span class="val" id="vMorphPeriod"></span></label>
+    <input type="range" id="morphPeriod" min="2" max="30" step="1" value="6">
+    <label>Durée du morphing (s) : <span class="val" id="vMorphDur"></span></label>
+    <input type="range" id="morphDur" min="0.5" max="6" step="0.5" value="1.5">
+    <label>Résolution de base : <span class="val" id="vResC"></span></label>
+    <input type="range" id="resC" min="32" max="120" step="8" value="32">
+    <label>Amplitude de base : <span class="val" id="vAmpC"></span></label>
+    <input type="range" id="ampC" min="0" max="1" step="0.02" value="0.25">
+    <button id="resampleC">⟳ Nouveau GFF</button>
+
+    <h2>Scène 3D</h2>
+    <label>Type de scène</label>
+    <select id="sceneType">
+      <option value="minimal" selected>Minimal élégant (profondeur)</option>
+      <option value="galaxy">Galaxie (ciel avec galaxies)</option>
+    </select>
+    <label>Qualité de rendu</label>
+    <select id="renderQuality">
+      <option value="low" selected>Basse (rapide)</option>
+      <option value="medium">Moyenne</option>
+      <option value="high">Haute (lente)</option>
+    </select>
+    <div class="toggle"><input type="checkbox" id="showShadows" checked><label style="margin:0">Ombres portées au sol</label></div>
+
+    <h2>Fond galaxie</h2>
+    <label>Couleur de fond (espace) </label>
+    <input type="color" id="galaxyBgColor" value="#0a0810">
+    <label>Couleur intérieure des galaxies</label>
+    <input type="color" id="galaxyInnerColor" value="#ffa575">
+    <label>Couleur extérieure (violet) des galaxies</label>
+    <input type="color" id="galaxyOuterColor" value="#5a2bb5">
+    <label>Nombre de galaxies dans le ciel : <span class="val" id="vGalaxyCount"></span></label>
+    <input type="range" id="galaxyCount" min="1" max="12" step="1" value="1">
+    <label>Densité de particules par galaxie : <span class="val" id="vGalaxyParticles"></span></label>
+    <input type="range" id="galaxyParticles" min="1500" max="12000" step="500" value="6000">
+    <label>Rayon des galaxies (Titus-Bode) : <span class="val" id="vGalaxyRadius"></span></label>
+    <input type="range" id="galaxyRadius" min="10" max="100" step="1" value="50">
+    <label>Vitesse de rotation galaxie : <span class="val" id="vGalaxySpeed"></span></label>
+    <input type="range" id="galaxySpeed" min="0" max="2" step="0.05" value="0.4">
+    <label>Taille des particules : <span class="val" id="vParticleSize"></span></label>
+    <input type="range" id="particleSize" min="0.01" max="1.5" step="0.001" value="0.4">
+
+    <h2>Sol uni brillant</h2>
+    <div class="toggle"><input type="checkbox" id="showFloor" checked><label style="margin:0">Afficher le sol</label></div>
+    <label>Couleur du sol</label>
+    <input type="color" id="floorColor" value="#ffffff">
+    <label>Opacité du sol : <span class="val" id="vFloorOpacity"></span></label>
+    <input type="range" id="floorOpacity" min="0.15" max="1" step="0.01" value="1">
+    <label>Intensité du reflet : <span class="val" id="vFloorReflect"></span></label>
+    <input type="range" id="floorReflect" min="0" max="1" step="0.01" value="0.45">
+    <label>Brillance du sol : <span class="val" id="vFloorShine"></span></label>
+    <input type="range" id="floorShine" min="0" max="1" step="0.01" value="0.15">
+    <label>Métallicité du sol : <span class="val" id="vFloorMetal"></span></label>
+    <input type="range" id="floorMetal" min="0" max="1" step="0.01" value="0.35">
+
+    <h2>Texte 3D en relief</h2>
+    <div class="toggle"><input type="checkbox" id="showText"><label style="margin:0">Afficher le texte</label></div>
+    <label>Texte</label>
+    <input type="text" id="textContent" value="Lombard Web Services">
+    <label>Police</label>
+    <select id="textFont">
+      <option value="'Caveat', cursive" selected>Caveat (manuscrite)</option>
+      <option value="'Playfair Display', serif">Playfair Display (serif)</option>
+      <option value="'Cormorant Garamond', serif">Cormorant (serif fin)</option>
+      <option value="'Inter', sans-serif">Inter (sans-serif)</option>
+      <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+      <option value="'Georgia', serif">Georgia</option>
+      <option value="'Arial Black', sans-serif">Arial Black</option>
+      <option value="custom">Police distante (TTF/WOFF via URL)</option>
+    </select>
+    <label>URL de la police (TTF/WOFF/WOFF2)</label>
+    <input type="url" id="textFontURL" placeholder="https://exemple.com/police.woff2">
+    <button id="loadFontBtn">⟳ Charger la police</button>
+    <label>Taille du texte : <span class="val" id="vTextSize"></span></label>
+    <input type="range" id="textSize" min="0.3" max="4" step="0.05" value="1.2">
+    <label>Épaisseur du relief : <span class="val" id="vTextRelief"></span></label>
+    <input type="range" id="textRelief" min="0" max="1" step="0.02" value="0.55">
+    <label>Couleur du texte</label>
+    <input type="color" id="textColor" value="#1a1a1f">
+    <label>Position Y : <span class="val" id="vTextY"></span></label>
+    <input type="range" id="textY" min="0" max="6" step="0.1" value="2.4">
+    <label>Position Z : <span class="val" id="vTextZ"></span></label>
+    <input type="range" id="textZ" min="-8" max="2" step="0.1" value="-5">
+    <div class="toggle"><input type="checkbox" id="textFacingCamera" checked><label style="margin:0">Texte face caméra</label></div>
+
+    <h2>Audio — chargement</h2>
+    <input type="file" id="fileInput" accept="audio/*">
+    <button id="loadBtn">▶ Charger une musique</button>
+    <button id="playBtn" style="background:#1a2a1f;border-color:var(--acc);color:var(--acc);font-weight:600" disabled>▶ Lecture</button>
+    <div id="audioStatus">Aucune musique chargée.</div>
+
+    <h2>Audio — spectre temps réel</h2>
+    <div id="spectrumWrap">
+      <div class="lbl"><span>Spectre (log 20 Hz – 8 kHz)</span><span id="specPeak">— Hz</span></div>
+      <canvas id="spectrumCanvas" width="440" height="56"></canvas>
+      <div id="specLegend">
+        <span><span class="dot" style="background:#7ee787"></span>Basse</span>
+        <span><span class="dot" style="background:#d2a8ff"></span>Médium</span>
+        <span><span class="dot" style="background:#ff7b72"></span>Aigus</span>
+      </div>
+    </div>
+
+    <h2>Audio — réactivité</h2>
+    <label>Intensité réaction : <span class="val" id="vReact"></span></label>
+    <input type="range" id="reactAmt" min="0" max="2" step="0.001" value="0.25">
+    <label>Gain amplitude audio : <span class="val" id="vAmpGain"></span></label>
+    <input type="range" id="ampGain" min="0" max="5" step="0.05" value="2.0">
+    <label>Gain résolution audio : <span class="val" id="vResGain"></span></label>
+    <input type="range" id="resGain" min="0" max="120" step="1" value="60">
+    <label>Lissage (attack/decay) : <span class="val" id="vSmooth"></span></label>
+    <input type="range" id="smooth" min="0" max="0.95" step="0.01" value="0.45">
+    <div class="toggle"><input type="checkbox" id="pulseScale" checked><label style="margin:0">Pulse scale / rotation</label></div>
+
+    <h2>Audio — AGC</h2>
+    <label>Sensibilité AGC : <span class="val" id="vAgc"></span></label>
+    <input type="range" id="agc" min="0.5" max="4" step="0.1" value="0.5">
+
+    <h2>Rendu figure</h2>
+    <label>Matériau</label>
+    <select id="material">
+      <option value="diamond" selected>Diamant (transmission)</option>
+      <option value="glass">Verre</option>
+      <option value="crystal">Cristal bleuté</option>
+      <option value="metal">Métal</option>
+      <option value="matte">Mat coloré</option>
+      <option value="gem">Gemme taillée</option>
+      <option value="quartz">Quartz</option>
+      <option value="pyrite">Pyrite (métallique doré)</option>
+      <option value="halite">Halite (sel gemme)</option>
+      <option value="amethyst">Améthyste</option>
+    </select>
+    <label>Palette du GFF</label>
+    <select id="palette">
+      <option value="gff" selected>GFF (bleu↔rouge)</option>
+      <option value="heat">Chaleur</option>
+      <option value="viridis">Viridis</option>
+      <option value="cool">Cool/warm</option>
+      <option value="mono">Monochrome</option>
+      <option value="spectral">Spectral</option>
+      <option value="ice">Glace</option>
+      <option value="magma">Magma</option>
+    </select>
+    <label>Environnement</label>
+    <select id="env">
+      <option value="studio" selected>Studio</option>
+      <option value="sunset">Coucher de soleil</option>
+      <option value="night">Nuit</option>
+      <option value="dark">Sombre</option>
+      <option value="laboratory">Laboratoire</option>
+      <option value="cave">Grotte</option>
+    </select>
+    <label>Intensité lumineuse : <span class="val" id="vExposure"></span></label>
+    <input type="range" id="exposure" min="0.2" max="2.5" step="0.05" value="1.2">
+    <label>Rugosité : <span class="val" id="vRough"></span></label>
+    <input type="range" id="rough" min="0" max="1" step="0.01" value="0.05">
+    <label>Métallicité : <span class="val" id="vMetal"></span></label>
+    <input type="range" id="metal" min="0" max="1" step="0.01" value="0">
+    <label>Indice de réfraction : <span class="val" id="vIor"></span></label>
+    <input type="range" id="ior" min="1" max="3" step="0.05" value="2.4">
+    <label>Transmission : <span class="val" id="vTrans"></span></label>
+    <input type="range" id="trans" min="0" max="1" step="0.01" value="1">
+    <label>Épaisseur : <span class="val" id="vThick"></span></label>
+    <input type="range" id="thick" min="0.1" max="5" step="0.1" value="2.5">
+
+    <h2>Caméra</h2>
+    <label>Zoom : <span class="val" id="vZ"></span></label>
+    <input type="range" id="Z" min="0" max="20" step="1" value="6">
+    <label>Vitesse de rotation : <span class="val" id="vRot"></span></label>
+    <input type="range" id="rotSpeed" min="0" max="3" step="0.1" value="0.4">
+    <button id="rot">⏸ Pause rotation</button>
+    <button id="resetCam">↺ Réinitialiser</button>
+  </div>
+  <div id="view">
+    <div id="hud"></div>
+    <div id="shapeLabel">sphère</div>
+    <button id="cinemaBtn">▶ Mode cinéma</button>
+    <div id="meter">
+      <div>BASSE (20–250 Hz) <span id="lowVal">0.00</span></div>
+      <div class="bar low"><div id="lowBar"></div></div>
+      <div>MÉDIUM (250–2k Hz) <span id="midVal">0.00</span></div>
+      <div class="bar mid"><div id="midBar"></div></div>
+      <div>FREQ HAUTES (2k–8k Hz) <span id="highVal">0.00</span></div>
+      <div class="bar high"><div id="highBar"></div></div>
+      <div>ÉNERGIE TOTALE <span id="energyVal">0.00</span></div>
+      <div class="bar energy"><div id="energyBar"></div></div>
+    </div>
+    <div id="legend">glisser : orbite · molette : zoom par crans</div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+               "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Reflector } from 'three/addons/objects/Reflector.js';
+
+// ============================================================
+// ÉTAT
+// ============================================================
+const state = {
+  material: 'diamond', palette: 'gff', env: 'studio',
+  zoomStep: 6, autoRot: true, baseDist: 10,
+  C: { surf: 'sphere', res: 32, amp: 0.25 },
+  rotSpeed: 0.4,
+  render: { exposure: 1.2, rough: 0.05, metal: 0, ior: 2.4, trans: 1.0, thick: 2.5 },
+  morph: {
+    enabled: true, periodMs: 6000, durMs: 1500, direction: 'forward',
+    phase: 'hold', holdStart: 0, morphStart: 0,
+    morphFrom: 'sphere', morphTo: 'torus', morphT: 0, currentSurf: 'sphere',
+  },
+  audio: {
+    ampGain: 2.0, resGain: 60, pulse: true, reactAmt: 0.25, agc: 0.5,
+  },
+  scene: { type: 'minimal', quality: 'low', shadows: true },
+  floor: { enabled: true, color: '#ffffff', shine: 0.15, metal: 0.35, opacity: 1.0, reflect: 0.45 },
+  galaxy: {
+    bgColor: '#0a0810', innerColor: '#ffa575', outerColor: '#5a2bb5',
+    count: 1, particles: 6000, radius: 50, speed: 0.4, pSize: 0.4,
+  },
+  text: {
+    enabled: false, content: 'Lombard Web Services',
+    font: "'Caveat', cursive", fontURL: '',
+    size: 1.2, relief: 0.55, color: '#1a1a1f',
+    y: 2.4, z: -5, facingCamera: true,
+  },
+};
+let mesh = null;
+
+// ============================================================
+// FFT 2D (GFF)
+// ============================================================
+function isPow2(n) { return (n & (n - 1)) === 0 && n > 0; }
+function fft1d(re, im) {
+  const n = re.length;
+  if (n <= 1) return;
+  if (!isPow2(n)) { for (let i=0;i<n;i++){re[i]=0;im[i]=0;} return; }
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { const tr=re[i];re[i]=re[j];re[j]=tr;
+                 const ti=im[i];im[i]=im[j];im[j]=ti; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = -2*Math.PI/len, wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let k = 0; k < len/2; k++) {
+        const ur = re[i+k], ui = im[i+k];
+        const vr = re[i+k+len/2]*cr - im[i+k+len/2]*ci;
+        const vi = re[i+k+len/2]*ci + im[i+k+len/2]*cr;
+        re[i+k]=ur+vr; im[i+k]=ui+vi;
+        re[i+k+len/2]=ur-vr; im[i+k+len/2]=ui-vi;
+        const ncr=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=ncr;
+      }
+    }
+  }
+}
+function fft2d(re, im, n) {
+  if (!isPow2(n)) return;
+  const r = new Float64Array(n), i = new Float64Array(n);
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) { r[x]=re[y*n+x]; i[x]=im[y*n+x]; }
+    fft1d(r, i);
+    for (let x = 0; x < n; x++) { re[y*n+x]=r[x]; im[y*n+x]=i[x]; }
+  }
+  for (let x = 0; x < n; x++) {
+    for (let y = 0; y < n; y++) { r[y]=re[y*n+x]; i[y]=im[y*n+x]; }
+    fft1d(r, i);
+    for (let y = 0; y < n; y++) { re[y*n+x]=r[y]; im[y*n+x]=i[y]; }
+  }
+}
+function ifft2d(re, im, n) {
+  if (!isPow2(n)) return;
+  for (let k = 0; k < n*n; k++) im[k] = -im[k];
+  fft2d(re, im, n);
+  const inv = 1/(n*n);
+  for (let k = 0; k < n*n; k++) { re[k] *= inv; im[k] *= -inv; }
+}
+let gCache = null;
+function gauss() {
+  if (gCache !== null) { const v = gCache; gCache = null; return v; }
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  const r = Math.sqrt(-2*Math.log(u));
+  gCache = r*Math.sin(2*Math.PI*v);
+  return r*Math.cos(2*Math.PI*v);
+}
+const GFF_N = 64;
+let gffBank = null;
+function makeGFFLayer(n, freqScale) {
+  const re = new Float64Array(n*n);
+  const im = new Float64Array(n*n);
+  for (let k = 0; k < n*n; k++) { re[k] = gauss(); im[k] = gauss(); }
+  fft2d(re, im, n);
+  const half = n/2;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const px = (x < half ? x : x-n);
+    const py = (y < half ? y : y-n);
+    const p = Math.sqrt(px*px + py*py);
+    const f = p > 0 ? 1/Math.pow(p, 1 + freqScale) : 0;
+    const k = y*n+x;
+    re[k] *= f; im[k] *= f;
+  }
+  ifft2d(re, im, n);
+  let maxAbs = 1e-9;
+  for (let k = 0; k < n*n; k++) {
+    if (!Number.isFinite(re[k])) re[k] = 0;
+    maxAbs = Math.max(maxAbs, Math.abs(re[k]));
+  }
+  const out = new Float64Array(n*n);
+  for (let k = 0; k < n*n; k++) out[k] = re[k] / maxAbs;
+  return { data: out, n };
+}
+function regenerateGFFBank() {
+  gffBank = {
+    low: makeGFFLayer(GFF_N, -0.35),
+    mid: makeGFFLayer(GFF_N, 0.0),
+    high: makeGFFLayer(GFF_N, 0.55),
+  };
+  return gffBank;
+}
+function ensureGFFBank() { if (!gffBank) regenerateGFFBank(); return gffBank; }
+
+// ============================================================
+// Surfaces
+// ============================================================
+const TAU = Math.PI*2;
+const surfBase = {
+  sphere(u,v){ const lon=u*TAU, lat=(v-.5)*Math.PI;
+    return new THREE.Vector3(Math.cos(lat)*Math.cos(lon), Math.sin(lat), Math.cos(lat)*Math.sin(lon)); },
+  torus(u,v){ const th=u*TAU, ph=v*TAU, R=0.7, r=0.3;
+    return new THREE.Vector3((R+r*Math.cos(ph))*Math.cos(th), r*Math.sin(ph), (R+r*Math.cos(ph))*Math.sin(th)); },
+  mobius(u,v){ const t=u*TAU, s=(v-.5)*0.5;
+    return new THREE.Vector3((0.55+s*Math.cos(t/2))*Math.cos(t), s*Math.sin(t/2), (0.55+s*Math.cos(t/2))*Math.sin(t)); },
+  catenoid(u,v){ const a=0.3, th=u*TAU, h=(v-.5)*1.1, r=a*Math.cosh(h/a);
+    return new THREE.Vector3(r*Math.cos(th), h, r*Math.sin(th)); },
+};
+const SURF_PERIODIC = {
+  sphere: { u: true, v: false },
+  torus: { u: true, v: true },
+  mobius: { u: true, v: false },
+  catenoid: { u: true, v: false },
+};
+function surfPoint(surfName, u, v, S) {
+  const p = surfBase[surfName](u, v);
+  return p.multiplyScalar(S);
+}
+const _e = 0.001;
+function surfNormal(surfName, u, v, S) {
+  const per = SURF_PERIODIC[surfName] || { u: false, v: false };
+  const wrap = (x, periodic) => {
+    if (!periodic) return Math.max(0, Math.min(1, x));
+    return ((x % 1) + 1) % 1;
+  };
+  const u0 = wrap(u - _e, per.u);
+  const u1 = wrap(u + _e, per.u);
+  const v0 = wrap(v - _e, per.v);
+  const v1 = wrap(v + _e, per.v);
+  const Pu = surfPoint(surfName, u1, v, S).sub(surfPoint(surfName, u0, v, S));
+  const Pv = surfPoint(surfName, u, v1, S).sub(surfPoint(surfName, u, v0, S));
+  const n = new THREE.Vector3().crossVectors(Pu, Pv);
+  if (!Number.isFinite(n.x) || n.lengthSq() < 1e-12) return new THREE.Vector3(0,1,0);
+  return n.normalize();
+}
+function sampleLayer(layer, u, v) {
+  const n = layer.n;
+  const uu = ((u % 1) + 1) % 1;
+  const vv = ((v % 1) + 1) % 1;
+  const gx = uu * (n-1);
+  const gy = vv * (n-1);
+  const x0 = Math.floor(gx), y0 = Math.floor(gy);
+  const x1 = Math.min(n-1, x0+1), y1 = Math.min(n-1, y0+1);
+  const fx = gx - x0, fy = gy - y0;
+  const d = layer.data;
+  const a = d[y0*n+x0], b = d[y0*n+x1], c = d[y1*n+x0], e = d[y1*n+x1];
+  return (a*(1-fx)+b*fx)*(1-fy) + (c*(1-fx)+e*fx)*fy;
+}
+
+// ============================================================
+// Three.js
+// ============================================================
+const view = document.getElementById('view');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#05070b');
+
+const camera = new THREE.PerspectiveCamera(42, 1, 0.05, 3000);
+camera.position.set(8, 5, 10);
+
+const renderer = new THREE.WebGLRenderer({
+  antialias: true, preserveDrawingBuffer: true,
+  powerPreference: 'high-performance',
+});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = state.render.exposure;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+view.appendChild(renderer.domElement);
+renderer.domElement.style.outline = 'none';
+renderer.domElement.style.touchAction = 'none';
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.autoRotate = state.autoRot;
+controls.autoRotateSpeed = state.rotSpeed;
+controls.minDistance = 1.5;
+controls.maxDistance = 200;
+controls.target.set(0, -0.5, 0);
+controls.enableZoom = false;
+
+// Correction du zoom molette
+function applyZoomStep() {
+  const stepFactor = Math.pow(1.15, state.zoomStep - 6);
+  const d = state.baseDist / stepFactor;
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  const nd = THREE.MathUtils.clamp(d, controls.minDistance, controls.maxDistance);
+  camera.position.copy(controls.target).addScaledVector(dir, nd);
+  controls.update();
+}
+function onWheel(e) {
+  e.preventDefault(); e.stopPropagation();
+  const dir = Math.sign(e.deltaY);
+  state.zoomStep = THREE.MathUtils.clamp(state.zoomStep + dir, 0, 20);
+  document.getElementById('Z').value = state.zoomStep;
+  document.getElementById('vZ').textContent = state.zoomStep;
+  applyZoomStep();
+}
+renderer.domElement.addEventListener('wheel', onWheel, { passive:false });
+view.addEventListener('wheel', onWheel, { passive:false, capture:true });
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+let envMap = null;
+function updateEnv() {
+  if (envMap) envMap.dispose();
+  if (state.env === 'studio') {
+    envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  } else {
+    const c = new THREE.Color();
+    if (state.env === 'sunset') c.setHSL(0.08, 0.8, 0.5);
+    else if (state.env === 'night') c.setHSL(0.6, 0.5, 0.1);
+    else if (state.env === 'laboratory') c.setHSL(0.55, 0.15, 0.8);
+    else if (state.env === 'cave') c.setHSL(0.08, 0.4, 0.15);
+    else c.setHSL(0.7, 0.1, 0.05);
+    const g = new THREE.Scene();
+    g.background = c;
+    envMap = pmrem.fromScene(g, 0.04).texture;
+  }
+  scene.environment = envMap;
+}
+updateEnv();
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
+keyLight.position.set(6, 10, 8);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(1024, 1024);
+keyLight.shadow.camera.near = 0.5;
+keyLight.shadow.camera.far = 30;
+keyLight.shadow.camera.left = -8;
+keyLight.shadow.camera.right = 8;
+keyLight.shadow.camera.top = 8;
+keyLight.shadow.camera.bottom = -8;
+scene.add(keyLight);
+const rimLight = new THREE.DirectionalLight(0x79c0ff, 1.2);
+rimLight.position.set(-8, 4, -6);
+scene.add(rimLight);
+const fillLight = new THREE.PointLight(0xffd9a0, 30, 40, 2);
+fillLight.position.set(0, 3, 0);
+scene.add(fillLight);
+
+// ============================================================
+// SOL
+// ============================================================
+const FLOOR_Y = -4.0;
+let floorMesh = null;
+let floorReflector = null;
+let floorFadeMesh = null;
+
+function buildFloor() {
+  if (floorMesh) {
+    scene.remove(floorMesh);
+    if (floorMesh.geometry) floorMesh.geometry.dispose();
+    if (floorMesh.material) floorMesh.material.dispose();
+    floorMesh = null;
+  }
+  if (floorReflector) {
+    scene.remove(floorReflector);
+    if (floorReflector.geometry) floorReflector.geometry.dispose();
+    if (floorReflector.material) floorReflector.material.dispose();
+    floorReflector = null;
+  }
+  if (floorFadeMesh) {
+    scene.remove(floorFadeMesh);
+    if (floorFadeMesh.geometry) floorFadeMesh.geometry.dispose();
+    if (floorFadeMesh.material) floorFadeMesh.material.dispose();
+    floorFadeMesh = null;
+  }
+  if (!state.floor.enabled) return;
+
+  const FLOOR_SIZE = 500; // grand pour éviter de voir à travers les bords quand la caméra est basse
+
+  // 1) SOL OPAQUE (couche de base) — jamais de transparence, reçoit les ombres
+  const geo = new THREE.PlaneGeometry(FLOOR_SIZE, FLOOR_SIZE, 1, 1);
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(state.floor.color),
+    metalness: state.floor.metal,
+    roughness: Math.max(0.02, state.floor.shine),
+    envMapIntensity: 1.0,
+    clearcoat: 0.6,
+    clearcoatRoughness: 0.1,
+    transparent: false,          // OPAQUE
+    opacity: 1.0,
+    depthWrite: true,
+    side: THREE.FrontSide,
+  });
+  // Opacité du sol via un mix de couleur vers le fond si opacity < 1
+  // (on garde transparent:false pour ne jamais "voir à travers")
+  if (state.floor.opacity < 0.999) {
+    mat.transparent = true;
+    mat.opacity = state.floor.opacity;
+    mat.depthWrite = state.floor.opacity > 0.9;
+  }
+  floorMesh = new THREE.Mesh(geo, mat);
+  floorMesh.rotation.x = -Math.PI / 2;
+  floorMesh.position.y = FLOOR_Y;
+  floorMesh.receiveShadow = true;
+  floorMesh.renderOrder = 0;
+  scene.add(floorMesh);
+
+  // 2) REFLET (Reflector) au-dessus du sol opaque — opacité contrôlée par "Intensité du reflet"
+  const mirrorGeo = new THREE.PlaneGeometry(FLOOR_SIZE * 0.95, FLOOR_SIZE * 0.95);
+  floorReflector = new Reflector(mirrorGeo, {
+    clipBias: 0.003,
+    textureWidth: Math.min(2048, window.innerWidth * devicePixelRatio) | 0,
+    textureHeight: Math.min(2048, window.innerHeight * devicePixelRatio) | 0,
+    color: new THREE.Color(state.floor.color),
+  });
+  floorReflector.rotation.x = -Math.PI / 2;
+  floorReflector.position.y = FLOOR_Y + 0.008;
+  if (floorReflector.material) {
+    floorReflector.material.transparent = true;
+    floorReflector.material.opacity = Math.max(0, Math.min(1, state.floor.reflect));
+    floorReflector.material.depthWrite = false;
+  }
+  floorReflector.renderOrder = 1;
+  scene.add(floorReflector);
+
+  // 3) MASQUE RADIAL au-dessus de tout — adoucit uniquement l'horizon (bords lointains)
+  const fadeGeo = new THREE.PlaneGeometry(FLOOR_SIZE * 1.15, FLOOR_SIZE * 1.15);
+  const fadeMat = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    side: THREE.DoubleSide,
+    uniforms: {
+      uColor: { value: new THREE.Color(state.galaxy.bgColor || '#0a0810') },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColor;
+      varying vec2 vUv;
+      void main() {
+        vec2 c = vUv - 0.5;
+        float d = length(c) * 2.0;
+        // Transparent au centre (sol + reflet visibles), opaque seulement aux extrêmes bords
+        float a = smoothstep(0.78, 1.08, d) * 0.95;
+        if (a < 0.01) discard;
+        gl_FragColor = vec4(uColor, a);
+      }
+    `,
+  });
+  floorFadeMesh = new THREE.Mesh(fadeGeo, fadeMat);
+  floorFadeMesh.rotation.x = -Math.PI / 2;
+  floorFadeMesh.position.y = FLOOR_Y + 0.02;
+  floorFadeMesh.renderOrder = 3;
+  scene.add(floorFadeMesh);
+}
+
+// ============================================================
+// TEXTE
+// ============================================================
+let textMesh = null;
+let textTexture = null;
+const textUniforms = {
+  uTextColor: { value: new THREE.Color(state.text.color) },
+  uRelief: { value: state.text.relief },
+  uTime: { value: 0 },
+};
+function buildTextTexture() {
+  const txt = state.text.content || ' ';
+  const fontStr = state.text.font;
+  const canvas = document.createElement('canvas');
+  canvas.width = 2048;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.font = `700 220px ${fontStr}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(txt, canvas.width/2, canvas.height/2);
+  if (textTexture) textTexture.dispose();
+  textTexture = new THREE.CanvasTexture(canvas);
+  textTexture.colorSpace = THREE.SRGBColorSpace;
+  textTexture.needsUpdate = true;
+  return textTexture;
+}
+function buildTextMesh() {
+  if (textMesh) {
+    scene.remove(textMesh);
+    textMesh.geometry.dispose();
+    textMesh.material.dispose();
+    textMesh = null;
+  }
+  if (!state.text.enabled) return;
+  const tex = buildTextTexture();
+  const aspect = tex.image.width / tex.image.height;
+  const baseH = 0.9 * state.text.size;
+  const baseW = baseH * aspect;
+  const geo = new THREE.PlaneGeometry(baseW, baseH, 256, 64);
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { ...textUniforms, uTexture: { value: tex } },
+    transparent: true, side: THREE.DoubleSide, depthWrite: false,
+    vertexShader: `
+      uniform float uRelief;
+      varying vec2 vUv; varying vec3 vNormal; varying vec3 vWorldPos;
+      uniform sampler2D uTexture;
+      void main() {
+        vUv = uv;
+        vec3 pos = position;
+        float a = texture2D(uTexture, uv).a;
+        vec2 d = abs(uv - 0.5);
+        float bulge = max(0.0, (1.0 - (d.x + d.y) * 1.2));
+        pos.z += a * bulge * uRelief * 0.25;
+        vNormal = normalize(vec3(-(uv.x - 0.5) * uRelief * 2.0, (uv.y - 0.5) * uRelief * 2.0, 1.0));
+        vWorldPos = (modelMatrix * vec4(pos, 1.0)).xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uTextColor; uniform float uRelief; uniform float uTime;
+      varying vec2 vUv; varying vec3 vNormal; varying vec3 vWorldPos;
+      uniform sampler2D uTexture;
+      void main() {
+        vec4 tex = texture2D(uTexture, vUv);
+        if (tex.a < 0.05) discard;
+        vec3 lightDir = normalize(vec3(0.4, 1.0, 0.8));
+        vec3 N = normalize(vNormal);
+        float diff = max(0.0, dot(N, lightDir));
+        vec3 V = normalize(cameraPosition - vWorldPos);
+        vec3 H = normalize(lightDir + V);
+        float spec = pow(max(0.0, dot(N, H)), 48.0);
+        vec3 col = uTextColor * (0.5 + 0.7 * diff);
+        col += vec3(1.0, 0.95, 0.85) * spec * uRelief;
+        col += vec3(0.1, 0.08, 0.05) * (1.0 - N.z);
+        gl_FragColor = vec4(col, tex.a);
+      }
+    `,
+  });
+  textMesh = new THREE.Mesh(geo, mat);
+  textMesh.position.set(0, state.text.y, state.text.z);
+  textMesh.renderOrder = 1;
+  scene.add(textMesh);
+}
+function updateTextTransform() {
+  if (!textMesh) return;
+  textMesh.position.set(0, state.text.y, state.text.z);
+}
+
+// ============================================================
+// GALAXIE
+// ============================================================
+let skySphere = null;
+const galaxyGroup = new THREE.Group();
+scene.add(galaxyGroup);
+let galaxySprites = [];
+
+const galaxyVertexShader = `
+  attribute float aRadiusRatio;
+  attribute vec3 aColor;
+  attribute float aSize;
+  varying vec3 vColor;
+  varying float vAlpha;
+  varying vec2 vUv;
+  uniform float uPixelRatio;
+  uniform float uTime;
+  uniform float uSpeed;
+  uniform float uSize;
+  void main() {
+    vColor = aColor;
+    vUv = uv;
+    float angle = uTime * uSpeed * (1.0 - aRadiusRatio);
+    float ca = cos(angle), sa = sin(angle);
+    vec3 rotated = vec3(
+      position.x * ca - position.z * sa,
+      position.y,
+      position.x * sa + position.z * ca
+    );
+    vec4 mvPosition = modelViewMatrix * vec4(rotated, 1.0);
+    float dist = max(0.001, -mvPosition.z);
+    gl_PointSize = aSize * uSize * uPixelRatio * (180.0 / dist);
+    gl_Position = projectionMatrix * mvPosition;
+    float d = length(vUv - vec2(0.5));
+    vAlpha = max(0.0, 0.12 / max(d, 0.001) - 0.18);
+  }
+`;
+const galaxyFragmentShader = `
+  varying vec3 vColor;
+  varying float vAlpha;
+  void main() {
+    vec2 c = gl_PointCoord - vec2(0.5);
+    float d = length(c);
+    if (d > 0.5) discard;
+    float a = smoothstep(0.5, 0.0, d) * vAlpha;
+    gl_FragColor = vec4(vColor, a);
+  }
+`;
+
+function createGalaxyPoints(particleCount, radius, innerColor, outerColor) {
+  const positions = new Float32Array(particleCount * 3);
+  const colors = new Float32Array(particleCount * 3);
+  const sizes = new Float32Array(particleCount);
+  const radiusRatios = new Float32Array(particleCount);
+  const uvs = new Float32Array(particleCount * 2);
+  const cIn = new THREE.Color(innerColor);
+  const cOut = new THREE.Color(outerColor);
+  const branches = 3;
+
+  for (let i = 0; i < particleCount; i++) {
+    const radiusRatio = Math.random();
+    const r = Math.pow(radiusRatio, 1.5) * radius;
+    const branchIdx = Math.floor(Math.random() * branches);
+    const branchAngle = branchIdx * (Math.PI * 2 / branches);
+    const angle = branchAngle + (1 - radiusRatio) * Math.PI * 1.6;
+    const rx = (Math.random() * 2 - 1);
+    const ry = (Math.random() * 2 - 1);
+    const rz = (Math.random() * 2 - 1);
+    const offX = Math.sign(rx) * Math.pow(Math.abs(rx), 3) * radiusRatio + 0.2 * (Math.random() * 2 - 1);
+    const offY = Math.sign(ry) * Math.pow(Math.abs(ry), 3) * radiusRatio + 0.2 * (Math.random() * 2 - 1);
+    const offZ = Math.sign(rz) * Math.pow(Math.abs(rz), 3) * radiusRatio + 0.2 * (Math.random() * 2 - 1);
+
+    const x = Math.cos(angle) * r + offX;
+    const y = offY * 0.5;
+    const z = Math.sin(angle) * r + offZ;
+
+    positions[i*3] = x;
+    positions[i*3+1] = y;
+    positions[i*3+2] = z;
+
+    const t = Math.pow(1 - radiusRatio, 2);
+    const c = cIn.clone().lerp(cOut, 1 - t);
+    colors[i*3] = c.r;
+    colors[i*3+1] = c.g;
+    colors[i*3+2] = c.b;
+
+    // Taille de base raisonnable (sera multipliée par uSize)
+    sizes[i] = 8 + Math.random() * 18;
+    radiusRatios[i] = radiusRatio;
+    uvs[i*2] = Math.random();
+    uvs[i*2+1] = Math.random();
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
+  geo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+  geo.setAttribute('aRadiusRatio', new THREE.BufferAttribute(radiusRatios, 1));
+  geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uPixelRatio: { value: Math.min(devicePixelRatio, 2) },
+      uTime: { value: 0 },
+      uSpeed: { value: state.galaxy.speed },
+      uSize: { value: state.galaxy.pSize },
+    },
+    vertexShader: galaxyVertexShader,
+    fragmentShader: galaxyFragmentShader,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  return new THREE.Points(geo, mat);
+}
+
+function rebuildGalaxies() {
+  galaxySprites.forEach(g => {
+    galaxyGroup.remove(g.mesh);
+    g.mesh.geometry.dispose();
+    g.mesh.material.dispose();
+  });
+  galaxySprites = [];
+  const G = state.galaxy;
+  const count = Math.max(1, Math.min(12, G.count));
+  // Limite dynamique pour éviter le freeze (>400ms) quand count * particles est trop grand
+  const maxTotal = 48000;
+  let particles = Math.max(1500, Math.min(12000, G.particles));
+  if (count * particles > maxTotal) {
+    particles = Math.max(1200, Math.floor(maxTotal / count));
+  }
+  const baseRadius = G.radius;
+  
+  for (let i = 0; i < count; i++) {
+    // TITUS-BODE LAW: r_n = a + b * 2^n
+    const a = 0.4, b = 0.3;
+    const titusRadius = (a + b * Math.pow(2, i)) * baseRadius;
+    
+    const pts = createGalaxyPoints(particles, titusRadius, G.innerColor, G.outerColor);
+    
+    // Position based on index – toujours au-dessus du sol
+    if (count === 1) {
+      pts.position.set(0, 45, -90);
+      pts.rotation.set(-Math.PI * 0.18, 0, 0.25);
+    } else {
+      const theta = (i / count) * Math.PI * 2;
+      const phi = 0.35 + (i % 5) * 0.12; // évite les positions trop basses
+      const dist = 100 + i * 35;
+      pts.position.set(
+        Math.sin(phi) * Math.cos(theta) * dist,
+        Math.max(28, Math.sin(phi) * Math.sin(theta) * dist * 0.6 + 30),
+        Math.cos(phi) * dist * 0.7 - 40
+      );
+      pts.rotation.set(Math.random()*0.6 - 0.3, Math.random()*Math.PI*2, Math.random()*0.4 - 0.2);
+      pts.userData.rotDir = (i % 2 === 0) ? 1 : -1;
+    }
+    galaxyGroup.add(pts);
+    galaxySprites.push({ mesh: pts });
+  }
+}
+
+// Ciel étoilé
+function buildSkySphere() {
+  if (skySphere) {
+    scene.remove(skySphere);
+    skySphere.geometry.dispose();
+    skySphere.material.dispose();
+    skySphere = null;
+  }
+  const q = state.scene.quality;
+  const segs = q === 'low' ? 16 : q === 'high' ? 64 : 32;
+  const geo = new THREE.SphereGeometry(800, segs, segs);
+  const uniforms = {
+    uTime: { value: 0 },
+    uQuality: { value: q === 'high' ? 1.0 : q === 'medium' ? 0.6 : 0.3 },
+  };
+  const mat = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    uniforms,
+    vertexShader: `
+      varying vec3 vPos;
+      void main() {
+        vPos = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      varying vec3 vPos;
+      uniform float uTime;
+      uniform float uQuality;
+      float hash(vec3 p) {
+        p = fract(p * 0.3183099 + vec3(0.1, 0.2, 0.3));
+        p *= 17.0;
+        return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+      }
+      float noise(vec3 x) {
+        vec3 p = floor(x);
+        vec3 f = fract(x);
+        f = f*f*(3.0-2.0*f);
+        return mix(mix(mix(hash(p+vec3(0,0,0)), hash(p+vec3(1,0,0)), f.x),
+                       mix(hash(p+vec3(0,1,0)), hash(p+vec3(1,1,0)), f.x), f.y),
+                   mix(mix(hash(p+vec3(0,0,1)), hash(p+vec3(1,0,1)), f.x),
+                       mix(hash(p+vec3(0,1,1)), hash(p+vec3(1,1,1)), f.x), f.y), f.z);
+      }
+      float fbm(vec3 p) {
+        float v = 0.0, a = 0.5;
+        for (int i = 0; i < 5; i++) { v += a * noise(p); p *= 2.0; a *= 0.5; }
+        return v;
+      }
+      void main() {
+        vec3 dir = normalize(vPos);
+        float stars;
+        if (uQuality > 0.4) {
+          vec3 p = dir * 400.0;
+          stars = smoothstep(0.997, 1.0, hash(floor(p)));
+        } else {
+          vec3 p = dir * 200.0;
+          stars = smoothstep(0.995, 1.0, hash(floor(p)));
+        }
+        float nebula = fbm(dir * 2.0 + vec3(uTime * 0.02));
+        float nebula2 = fbm(dir * 4.0 - vec3(uTime * 0.01));
+        vec3 colA = vec3(0.05, 0.08, 0.25);
+        vec3 colB = vec3(0.25, 0.10, 0.35);
+        vec3 colC = vec3(0.10, 0.02, 0.15);
+        vec3 nebulaCol = mix(colC, mix(colA, colB, nebula2), nebula);
+        nebulaCol *= 0.6 + 0.4 * nebula2;
+        vec3 starCol = mix(vec3(1.0, 0.95, 0.85), vec3(0.7, 0.85, 1.0), hash(dir*100.0));
+        vec3 finalCol = nebulaCol + starCol * stars * 2.0;
+        gl_FragColor = vec4(finalCol, 1.0);
+      }
+    `,
+  });
+  skySphere = new THREE.Mesh(geo, mat);
+  skySphere.userData.uniforms = uniforms;
+  scene.add(skySphere);
+}
+
+// ============================================================
+// SCÈNE
+// ============================================================
+function rebuildScene() {
+  if (state.scene.type === 'galaxy') {
+    scene.background = new THREE.Color(state.galaxy.bgColor);
+    buildSkySphere();
+    rebuildGalaxies();
+    galaxyGroup.visible = true;
+  } else {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 1024;
+    const ctx = canvas.getContext('2d');
+    const grad = ctx.createRadialGradient(
+      canvas.width * 0.5, canvas.height * 0.4, 50,
+      canvas.width * 0.5, canvas.height * 0.5, canvas.width * 0.75
+    );
+    grad.addColorStop(0, '#1a2438');
+    grad.addColorStop(0.4, '#0d1220');
+    grad.addColorStop(0.75, '#070a12');
+    grad.addColorStop(1, '#03050a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    scene.background = tex;
+    if (skySphere) { scene.remove(skySphere); skySphere.geometry.dispose(); skySphere.material.dispose(); skySphere = null; }
+    galaxySprites.forEach(g => { galaxyGroup.remove(g.mesh); g.mesh.geometry.dispose(); g.mesh.material.dispose(); });
+    galaxySprites = [];
+    galaxyGroup.visible = false;
+  }
+  buildFloor();
+  buildTextMesh();
+}
+
+// ============================================================
+// Palette
+// ============================================================
+const _c = new THREE.Color();
+function colorFor(v) {
+  const t = Math.max(-1, Math.min(1, v));
+  switch (state.palette) {
+    case 'gff':
+      if (t < 0) return _c.setRGB(0.2+0.3*(1+t), 0.5+0.3*(1+t), 1.0);
+      else       return _c.setRGB(1.0, 0.5-0.2*t, 0.2+0.1*(1-t));
+    case 'heat': return _c.setHSL((1-t)/3, 0.9, 0.5);
+    case 'viridis': return _c.setHSL(0.55-0.45*(t+1)/2, 0.75, 0.55);
+    case 'cool': return _c.setRGB(0.5-0.4*t, 0.7-0.2*Math.abs(t), 0.5+0.4*t);
+    case 'mono': { const g = 0.5+0.5*t; return _c.setRGB(g,g,g); }
+    case 'spectral': return _c.setHSL((t+1)*0.35, 0.8, 0.5);
+    case 'ice': return _c.setRGB(0.6-0.4*t, 0.8-0.2*t, 1.0);
+    case 'magma': return _c.setHSL(0.05+0.15*t, 0.9, 0.3+0.3*t);
+  }
+  return _c.setRGB(0.5,0.5,0.5);
+}
+
+// ============================================================
+// Matériau figure
+// ============================================================
+function makeMaterial() {
+  const R = state.render;
+  const base = {
+    metalness: R.metal, roughness: R.rough,
+    envMapIntensity: 1.5, side: THREE.DoubleSide,
+  };
+  switch (state.material) {
+    case 'diamond':
+      return new THREE.MeshPhysicalMaterial({
+        ...base, color: 0xffffff, metalness: 0, roughness: Math.min(0.1, R.rough),
+        transmission: R.trans, thickness: R.thick, ior: R.ior,
+        clearcoat: 1.0, clearcoatRoughness: 0.02,
+        transparent: true,
+        attenuationColor: new THREE.Color(0xa8d8ff), attenuationDistance: 3.0,
+      });
+    case 'glass':
+      return new THREE.MeshPhysicalMaterial({
+        ...base, color: 0xffffff, roughness: 0.1,
+        transmission: R.trans*0.95, thickness: R.thick, ior: R.ior,
+        clearcoat: 0.8, transparent: true,
+      });
+    case 'crystal':
+      return new THREE.MeshPhysicalMaterial({
+        ...base, color: 0x88bbff, metalness: 0.1, roughness: 0.15,
+        transmission: R.trans*0.85, thickness: R.thick, ior: R.ior,
+        clearcoat: 0.6, transparent: true,
+      });
+    case 'metal':
+      return new THREE.MeshStandardMaterial({ ...base, color: 0xc0c8d0, metalness: 1.0, roughness: R.rough });
+    case 'matte':
+      return new THREE.MeshStandardMaterial({ ...base, vertexColors: true, roughness: 0.6, metalness: 0.1 });
+    case 'gem':
+      return new THREE.MeshPhysicalMaterial({
+        ...base, color: 0xff66cc, metalness: 0.2, roughness: 0.0,
+        transmission: R.trans*0.9, thickness: R.thick, ior: R.ior,
+        clearcoat: 1.0, clearcoatRoughness: 0.0, transparent: true,
+      });
+    case 'quartz':
+      return new THREE.MeshPhysicalMaterial({
+        ...base, color: 0xddeeff, metalness: 0.0, roughness: 0.05,
+        transmission: R.trans*0.9, thickness: R.thick, ior: 1.55,
+        clearcoat: 0.5, transparent: true,
+      });
+    case 'pyrite':
+      return new THREE.MeshStandardMaterial({ ...base, color: 0xd4af37, metalness: 0.9, roughness: 0.25, envMapIntensity: 2.0 });
+    case 'halite':
+      return new THREE.MeshPhysicalMaterial({
+        ...base, color: 0xffffff, metalness: 0.0, roughness: 0.1,
+        transmission: R.trans*0.95, thickness: R.thick, ior: 1.54,
+        clearcoat: 0.3, transparent: true,
+      });
+    case 'amethyst':
+      return new THREE.MeshPhysicalMaterial({
+        ...base, color: 0x9966ff, metalness: 0.1, roughness: 0.05,
+        transmission: R.trans*0.85, thickness: R.thick, ior: 1.54,
+        clearcoat: 0.7, transparent: true,
+      });
+    default:
+      return new THREE.MeshStandardMaterial({ ...base, vertexColors: true, roughness: 0.6, metalness: 0.1 });
+  }
+}
+function clearMesh() {
+  if (mesh) {
+    scene.remove(mesh);
+    mesh.geometry.dispose();
+    mesh.material.dispose();
+    mesh = null;
+  }
+}
+const MESH_BASE_Y = 0;
+function buildFromData(pos, col, idx, keepCamera = false) {
+  clearMesh();
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(col), 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  geo.computeBoundingBox();
+  const mat = makeMaterial();
+  mat.vertexColors = (state.material === 'matte');
+  mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.position.y = MESH_BASE_Y;
+  scene.add(mesh);
+  if (!keepCamera) {
+    const box = geo.boundingBox;
+    if (box && !box.isEmpty()) {
+      const center = box.getCenter(new THREE.Vector3());
+      center.y += MESH_BASE_Y;
+      const sz = box.getSize(new THREE.Vector3()).length();
+      if (Number.isFinite(sz) && sz > 1e-6) {
+        controls.target.copy(center);
+        state.baseDist = Math.max(3.5, sz*1.9);
+        controls.minDistance = sz*0.4;
+        controls.maxDistance = sz*5;
+        const dir = camera.position.clone().sub(center);
+        if (dir.lengthSq() < 1e-6) dir.set(1,0.8,1);
+        dir.normalize();
+        state.zoomStep = 6;
+        document.getElementById('Z').value = 6;
+        document.getElementById('vZ').textContent = 6;
+        applyZoomStep();
+      }
+    }
+  }
+}
+
+// ============================================================
+// AUDIO
+// ============================================================
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let audioBuffer = null;
+let sourceNode = null;
+let analyser = null;
+let isPlaying = false;
+let fftData = null;
+let timeData = null;
+
+const fileInput = document.getElementById('fileInput');
+const loadBtn = document.getElementById('loadBtn');
+const playBtn = document.getElementById('playBtn');
+const audioStatus = document.getElementById('audioStatus');
+const reactAmt = document.getElementById('reactAmt');
+const ampGain = document.getElementById('ampGain');
+const resGain = document.getElementById('resGain');
+const agcSlider = document.getElementById('agc');
+const smooth = document.getElementById('smooth');
+const pulseScale = document.getElementById('pulseScale');
+
+let energyLow = 0, energyMid = 0, energyHigh = 0, energyTotal = 0;
+const agcLow = { peak: 0.001, floor: 0.0001 };
+const agcMid = { peak: 0.001, floor: 0.0001 };
+const agcHigh = { peak: 0.001, floor: 0.0001 };
+let prevRms = 0;
+let onsetPulse = 0;
+
+const specBins = 48;
+const specData = new Float32Array(specBins);
+const specCanvas = document.getElementById('spectrumCanvas');
+const specCtx = specCanvas ? specCanvas.getContext('2d') : null;
+let specPeakFreq = 0;
+
+loadBtn.onclick = () => fileInput.click();
+fileInput.onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  audioStatus.textContent = 'Chargement…';
+  try {
+    const arrayBuf = await file.arrayBuffer();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+    audioStatus.textContent = `Chargé : ${file.name} · ${audioBuffer.duration.toFixed(1)}s`;
+    playBtn.disabled = false;
+  } catch (err) {
+    audioStatus.textContent = 'Erreur : ' + err.message;
+  }
+};
+function setupAnalyser() {
+  if (analyser) return;
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 2048;
+  analyser.smoothingTimeConstant = 0.55;
+  fftData = new Float32Array(analyser.frequencyBinCount);
+  timeData = new Float32Array(analyser.fftSize);
+}
+function playAudio() {
+  if (!audioBuffer) return;
+  if (isPlaying) return;
+  setupAnalyser();
+  if (sourceNode) { try { sourceNode.disconnect(); } catch(_) {} }
+  sourceNode = audioCtx.createBufferSource();
+  sourceNode.buffer = audioBuffer;
+  sourceNode.connect(analyser);
+  analyser.connect(audioCtx.destination);
+  sourceNode.start();
+  isPlaying = true;
+  playBtn.textContent = '⏸ Pause';
+  if (state.morph.enabled) {
+    state.morph.morphFrom = state.C.surf;
+    state.morph.morphTo = nextSurf(state.C.surf);
+    state.morph.phase = 'hold';
+    state.morph.holdStart = performance.now();
+    state.morph.morphT = 0;
+  }
+  sourceNode.onended = () => { isPlaying = false; playBtn.textContent = '▶ Lecture'; };
+}
+playBtn.onclick = () => {
+  if (!audioBuffer) return;
+  if (isPlaying) { try { sourceNode.stop(); } catch(_) {} isPlaying = false; playBtn.textContent = '▶ Lecture'; }
+  else { if (audioCtx.state === 'suspended') audioCtx.resume(); playAudio(); }
+};
+function agcNormalize(value, agc, sensitivity) {
+  if (value > agc.peak) agc.peak = value; else agc.peak *= 0.999;
+  if (value < agc.floor) agc.floor = value; else agc.floor *= 1.0005;
+  const range = Math.max(1e-6, agc.peak - agc.floor);
+  const norm = (value - agc.floor) / range;
+  return Math.pow(Math.max(0, Math.min(1, norm)), 1 / sensitivity);
+}
+function analyzeSpectrum() {
+  if (!analyser || !isPlaying) return;
+  analyser.getFloatFrequencyData(fftData);
+  analyser.getFloatTimeDomainData(timeData);
+  const sampleRate = audioCtx.sampleRate;
+  const nyquist = sampleRate / 2;
+  const binWidth = nyquist / fftData.length;
+  let sumLow = 0, sumMid = 0, sumHigh = 0, totalEnergy = 0;
+  let peakFreq = 0, peakAmp = 0;
+  const specBars = specBins;
+  const specBand = Math.max(1, Math.floor(fftData.length / specBars));
+  for (let b = 0; b < specBars; b++) specData[b] *= 0.85;
+  for (let i = 1; i < fftData.length; i++) {
+    const freq = i * binWidth;
+    if (freq < 20 || freq > 8000) continue;
+    const db = fftData[i];
+    if (!Number.isFinite(db)) continue;
+    const amp = Math.pow(10, db / 20);
+    const e = amp * amp;
+    totalEnergy += e;
+    const bi = Math.min(specBars - 1, Math.floor(i / specBand));
+    if (e > specData[bi]) specData[bi] = e;
+    if (amp > peakAmp) { peakAmp = amp; peakFreq = freq; }
+    if (freq >= 20 && freq < 250) sumLow += e;
+    else if (freq >= 250 && freq < 2000) sumMid += e;
+    else if (freq >= 2000 && freq <= 8000) sumHigh += e;
+  }
+  specPeakFreq = peakFreq;
+  const sens = parseFloat(agcSlider.value);
+  const normL = agcNormalize(Math.sqrt(sumLow), agcLow, sens);
+  const normM = agcNormalize(Math.sqrt(sumMid), agcMid, sens);
+  const normH = agcNormalize(Math.sqrt(sumHigh), agcHigh, sens);
+  const sm = parseFloat(smooth.value);
+  energyLow  = normL > energyLow  ? normL : energyLow  * sm + normL * (1-sm);
+  energyMid  = normM > energyMid  ? normM : energyMid  * sm + normM * (1-sm);
+  energyHigh = normH > energyHigh ? normH : energyHigh * sm + normH * (1-sm);
+  let sumSq = 0;
+  for (let i = 0; i < timeData.length; i++) sumSq += timeData[i]*timeData[i];
+  const rms = Math.sqrt(sumSq / timeData.length);
+  const rmsDiff = Math.max(0, rms - prevRms);
+  onsetPulse = rmsDiff > 0.015 ? Math.min(1, rmsDiff * 12) : onsetPulse * 0.8;
+  prevRms = rms;
+  energyTotal = Math.min(1, Math.sqrt(totalEnergy));
+  drawSpectrum();
+}
+function drawSpectrum() {
+  if (!specCtx) return;
+  const w = specCanvas.width, h = specCanvas.height;
+  specCtx.clearRect(0, 0, w, h);
+  specCtx.fillStyle = 'rgba(5,7,11,1)';
+  specCtx.fillRect(0, 0, w, h);
+  const fMin = 20, fMax = 8000;
+  const logMin = Math.log10(fMin), logMax = Math.log10(fMax);
+  const freqToX = (f) => ((Math.log10(f) - logMin) / (logMax - logMin)) * w;
+  specCtx.fillStyle = 'rgba(126,231,135,0.06)';
+  specCtx.fillRect(freqToX(20), 0, freqToX(250) - freqToX(20), h);
+  specCtx.fillStyle = 'rgba(210,168,255,0.06)';
+  specCtx.fillRect(freqToX(250), 0, freqToX(2000) - freqToX(250), h);
+  specCtx.fillStyle = 'rgba(255,123,114,0.06)';
+  specCtx.fillRect(freqToX(2000), 0, freqToX(8000) - freqToX(2000), h);
+  const barW = w / specBins;
+  for (let b = 0; b < specBins; b++) {
+    const val = Math.min(1, Math.sqrt(specData[b]) * 2.0);
+    const bh = val * h;
+    const fCenter = fMin * Math.pow(fMax/fMin, (b + 0.5) / specBins);
+    let col;
+    if (fCenter < 250) col = '126,231,135';
+    else if (fCenter < 2000) col = '210,168,255';
+    else col = '255,123,114';
+    specCtx.fillStyle = `rgba(${col},${0.35 + val * 0.6})`;
+    specCtx.fillRect(b * barW, h - bh, barW - 1, bh);
+  }
+  if (specPeakFreq > 0) {
+    document.getElementById('specPeak').textContent = specPeakFreq.toFixed(0) + ' Hz';
+  }
+}
+function updateMeters() {
+  document.getElementById('lowVal').textContent = energyLow.toFixed(2);
+  document.getElementById('midVal').textContent = energyMid.toFixed(2);
+  document.getElementById('highVal').textContent = energyHigh.toFixed(2);
+  document.getElementById('energyVal').textContent = energyTotal.toFixed(2);
+  document.getElementById('lowBar').style.width = (energyLow * 100) + '%';
+  document.getElementById('midBar').style.width = (energyMid * 100) + '%';
+  document.getElementById('highBar').style.width = (energyHigh * 100) + '%';
+  document.getElementById('energyBar').style.width = (energyTotal * 100) + '%';
+}
+
+// ============================================================
+// MORPHING
+// ============================================================
+const SURF_ORDER = ['sphere','torus','mobius','catenoid'];
+function nextSurf(s) {
+  const i = SURF_ORDER.indexOf(s);
+  const dir = state.morph.direction === 'backward' ? -1 : 1;
+  return SURF_ORDER[((i + dir) % SURF_ORDER.length + SURF_ORDER.length) % SURF_ORDER.length];
+}
+function easeInOut(t) { return t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2; }
+function updateMorph(now) {
+  const M = state.morph;
+  if (!M.enabled) {
+    M.phase = 'hold'; M.morphFrom = state.C.surf; M.morphTo = state.C.surf; M.morphT = 0;
+    document.getElementById('shapeLabel').textContent = state.C.surf;
+    return;
+  }
+  if (M.phase === 'hold') {
+    const elapsed = now - M.holdStart;
+    M.morphT = 0;
+    document.getElementById('shapeLabel').textContent = M.morphFrom;
+    if (elapsed >= M.periodMs) {
+      M.phase = 'morph'; M.morphStart = now; M.morphFrom = M.morphTo;
+      M.morphTo = nextSurf(M.morphFrom); M.morphT = 0;
+    }
+  } else if (M.phase === 'morph') {
+    const elapsed = now - M.morphStart;
+    const t = Math.min(1, elapsed / M.durMs);
+    M.morphT = easeInOut(t);
+    document.getElementById('shapeLabel').textContent = `${M.morphFrom} → ${M.morphTo}`;
+    if (t >= 1) {
+      M.phase = 'hold'; M.holdStart = now; M.morphFrom = M.morphTo;
+      M.morphTo = nextSurf(M.morphFrom); M.morphT = 0;
+      state.C.surf = M.morphFrom;
+      document.getElementById('surfC').value = state.C.surf;
+      document.getElementById('shapeLabel').textContent = M.morphFrom;
+    }
+  }
+}
+
+// ============================================================
+// RECONSTRUCTION
+// ============================================================
+let lastRes = -1, lastAmp = -1, lastModulateTime = 0;
+const MODULATE_INTERVAL = 60;
+let animClock = 0;
+let framesSinceLastBuild = 0;
+
+function rebuildSurface(now, morphT, surfA, surfB, audioActive) {
+  if (now - lastModulateTime < MODULATE_INTERVAL) return;
+  const S = 2.5;
+  const amt = parseFloat(reactAmt.value);
+  const aGain = parseFloat(ampGain.value);
+  const rGain = parseFloat(resGain.value);
+  const low = energyLow, mid = energyMid, high = energyHigh, total = energyTotal;
+  const onset = audioActive ? onsetPulse : 0;
+  const targetRes = state.C.res + (mid*rGain*0.7 + high*rGain*1.0 + low*rGain*0.25 + onset*rGain*0.4)*amt;
+  const res = Math.max(24, Math.min(220, Math.round(targetRes / 4) * 4));
+  const targetAmp = state.C.amp + (low*aGain*0.9 + mid*aGain*0.5 + onset*aGain*0.7)*amt;
+  const amp = Math.max(0.02, Math.min(3.5, targetAmp));
+  const wLow = 0.15 + low*1.2 + onset*0.3;
+  const wMid = 0.15 + mid*1.4 + low*0.15;
+  const wHigh = 0.10 + high*1.8 + mid*0.25;
+  const wSum = wLow + wMid + wHigh;
+  const weights = { low: wLow/wSum, mid: wMid/wSum, high: wHigh/wSum };
+  const resDelta = Math.abs(res - lastRes);
+  const ampDelta = Math.abs(amp - lastAmp);
+  const morphChanged = morphT > 0.001 && morphT < 0.999;
+  const forceRebuild = (++framesSinceLastBuild > 3);
+  if (!forceRebuild && resDelta < 2 && ampDelta < 0.015 && !morphChanged && lastRes > 0) return;
+  framesSinceLastBuild = 0;
+  lastModulateTime = now;
+  const layers = ensureGFFBank();
+  const N = res;
+  const positions = [], colors = [], indices = [];
+  const per = SURF_PERIODIC[morphT < 0.5 ? surfA : surfB] || { u: false, v: false };
+  const tScroll = animClock * (0.2 + total*0.6 + onset*0.5);
+  const offX = Math.sin(tScroll) * 0.35;
+  const offY = Math.cos(tScroll * 0.8) * 0.35;
+  const offX2 = Math.sin(animClock * 1.3 + high*2) * high * 0.15;
+  const offY2 = Math.cos(animClock * 1.7 + high*2) * high * 0.15;
+  for (let j = 0; j <= N; j++) {
+    for (let i = 0; i <= N; i++) {
+      const u = i/N, v = j/N;
+      let P;
+      if (morphT < 0.001) P = surfPoint(surfA, u, v, S);
+      else if (morphT > 0.999) P = surfPoint(surfB, u, v, S);
+      else {
+        const Pa = surfPoint(surfA, u, v, S);
+        const Pb = surfPoint(surfB, u, v, S);
+        P = Pa.clone().lerp(Pb, morphT);
+      }
+      const Nrm = surfNormal(morphT < 0.5 ? surfA : surfB, u, v, S);
+      const uBase = ((u + offX + offX2) % 1 + 1) % 1;
+      const vBase = ((v + offY + offY2) % 1 + 1) % 1;
+      const gLow = sampleLayer(layers.low, uBase, vBase);
+      const gMid = sampleLayer(layers.mid, uBase, vBase);
+      const gHigh = sampleLayer(layers.high, uBase, vBase);
+      const g = gLow*weights.low + gMid*weights.mid + gHigh*weights.high;
+      const punch = onset * Math.sign(g) * 0.15;
+      const disp = (g + punch) * amp * S * 0.5;
+      const finalP = P.clone().addScaledVector(Nrm, disp);
+      positions.push(finalP.x, finalP.y, finalP.z);
+      const c = colorFor(g);
+      colors.push(c.r, c.g, c.b);
+    }
+  }
+  // Couture : pour Möbius on applique le twist (u=0,v) ~ (u=1,1-v)
+  const isMobius = (surfA === 'mobius' || surfB === 'mobius' || state.C.surf === 'mobius');
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const a = j*(N+1) + i;
+      let b, d;
+      const c = a + (N+1);
+      if (per.u && i === N-1) {
+        if (isMobius) {
+          const jFlip = N - j;
+          const jFlipNext = N - (j + 1);
+          b = jFlip * (N+1) + 0;
+          d = Math.max(0, Math.min(N, jFlipNext)) * (N+1) + 0;
+        } else {
+          b = j*(N+1) + 0;
+          d = (j+1)*(N+1) + 0;
+        }
+      } else {
+        b = a + 1;
+        d = c + 1;
+      }
+      indices.push(a, b, d, a, d, c);
+    }
+  }
+  buildFromData(positions, colors, indices, true);
+  if (state.audio.pulse && mesh) {
+    const pulse = 1 + onset*0.25*amt + total*0.08*amt;
+    mesh.scale.setScalar(pulse);
+    mesh.rotation.z = Math.sin(animClock*1.2)*low*0.5 + Math.sin(animClock*2.1)*high*0.3;
+    mesh.rotation.x = Math.sin(animClock*0.9)*mid*0.4;
+    mesh.rotation.y = Math.sin(animClock*0.7)*total*0.2;
+  } else if (mesh) {
+    mesh.scale.setScalar(1); mesh.rotation.z = 0; mesh.rotation.x = 0; mesh.rotation.y = 0;
+  }
+  lastRes = res; lastAmp = amp;
+  const surfLabel = morphT > 0.05 && morphT < 0.95 ? `${surfA}→${surfB}` : (surfA || state.C.surf);
+  document.getElementById('hud').textContent =
+    `Surface · ${surfLabel} · N=${res}\n` +
+    `amp=${amp.toFixed(2)} · low=${low.toFixed(2)} mid=${mid.toFixed(2)} high=${high.toFixed(2)}`;
+}
+function rebuildStatic() {
+  const S = 2.5;
+  const layers = ensureGFFBank();
+  const weights = { low: 0.35, mid: 0.35, high: 0.30 };
+  const N = state.C.res;
+  const amp = state.C.amp;
+  const surfName = state.C.surf;
+  const positions = [], colors = [], indices = [];
+  const per = SURF_PERIODIC[surfName] || { u: false, v: false };
+  const tScroll = animClock * 0.2;
+  const offX = Math.sin(tScroll) * 0.35;
+  const offY = Math.cos(tScroll * 0.8) * 0.35;
+  for (let j = 0; j <= N; j++) {
+    for (let i = 0; i <= N; i++) {
+      const u = i/N, v = j/N;
+      const P = surfPoint(surfName, u, v, S);
+      const Nrm = surfNormal(surfName, u, v, S);
+      const uWrap = ((u + offX) % 1 + 1) % 1;
+      const vWrap = ((v + offY) % 1 + 1) % 1;
+      const gLow = sampleLayer(layers.low, uWrap, vWrap);
+      const gMid = sampleLayer(layers.mid, uWrap, vWrap);
+      const gHigh = sampleLayer(layers.high, uWrap, vWrap);
+      const g = gLow*weights.low + gMid*weights.mid + gHigh*weights.high;
+      const disp = g * amp * S * 0.5;
+      const finalP = P.clone().addScaledVector(Nrm, disp);
+      positions.push(finalP.x, finalP.y, finalP.z);
+      const c = colorFor(g);
+      colors.push(c.r, c.g, c.b);
+    }
+  }
+  const isMobius = (surfName === 'mobius');
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const a = j*(N+1) + i;
+      let b, d;
+      const c = a + (N+1);
+      if (per.u && i === N-1) {
+        if (isMobius) {
+          const jFlip = N - j;
+          const jFlipNext = N - (j + 1);
+          b = jFlip * (N+1) + 0;
+          d = Math.max(0, Math.min(N, jFlipNext)) * (N+1) + 0;
+        } else {
+          b = j*(N+1) + 0;
+          d = (j+1)*(N+1) + 0;
+        }
+      } else {
+        b = a + 1;
+        d = c + 1;
+      }
+      indices.push(a, b, d, a, d, c);
+    }
+  }
+  buildFromData(positions, colors, indices, lastRes === N);
+  lastRes = N; lastAmp = amp;
+  if (mesh) mesh.scale.setScalar(1);
+  document.getElementById('shapeLabel').textContent = surfName;
+  document.getElementById('hud').textContent =
+    `Surface · ${surfName} · N=${N}\namp=${amp.toFixed(2)}`;
+}
+
+// ============================================================
+// UI
+// ============================================================
+const $ = id => document.getElementById(id);
+function syncLabels() {
+  $('vResC').textContent = state.C.res;
+  $('vAmpC').textContent = state.C.amp.toFixed(2);
+  $('vZ').textContent = state.zoomStep;
+  $('vRot').textContent = state.rotSpeed.toFixed(1);
+  $('vExposure').textContent = state.render.exposure.toFixed(2);
+  $('vRough').textContent = state.render.rough.toFixed(2);
+  $('vMetal').textContent = state.render.metal.toFixed(2);
+  $('vIor').textContent = state.render.ior.toFixed(2);
+  $('vTrans').textContent = state.render.trans.toFixed(2);
+  $('vThick').textContent = state.render.thick.toFixed(1);
+  $('vReact').textContent = parseFloat(reactAmt.value).toFixed(3);
+  $('vAmpGain').textContent = parseFloat(ampGain.value).toFixed(2);
+  $('vResGain').textContent = parseFloat(resGain.value).toFixed(0);
+  $('vAgc').textContent = parseFloat(agcSlider.value).toFixed(1);
+  $('vSmooth').textContent = parseFloat(smooth.value).toFixed(2);
+  $('vMorphPeriod').textContent = (state.morph.periodMs/1000).toFixed(0);
+  $('vMorphDur').textContent = (state.morph.durMs/1000).toFixed(1);
+  $('vFloorOpacity').textContent = (state.floor.opacity ?? 1).toFixed(2);
+  $('vFloorReflect').textContent = (state.floor.reflect ?? 0.45).toFixed(2);
+  $('vFloorShine').textContent = parseFloat($('floorShine').value).toFixed(2);
+  $('vFloorMetal').textContent = parseFloat($('floorMetal').value).toFixed(2);
+  $('vTextSize').textContent = parseFloat($('textSize').value).toFixed(2);
+  $('vTextRelief').textContent = parseFloat($('textRelief').value).toFixed(2);
+  $('vTextY').textContent = parseFloat($('textY').value).toFixed(1);
+  $('vTextZ').textContent = parseFloat($('textZ').value).toFixed(1);
+  $('vGalaxyCount').textContent = state.galaxy.count;
+  $('vGalaxyParticles').textContent = state.galaxy.particles;
+  $('vGalaxyRadius').textContent = state.galaxy.radius;
+  $('vGalaxySpeed').textContent = state.galaxy.speed.toFixed(2);
+  $('vParticleSize').textContent = state.galaxy.pSize.toFixed(3);
+}
+
+$('surfC').onchange = e => {
+  state.C.surf = e.target.value;
+  state.morph.enabled = false;
+  $('morphCycle').checked = false;
+  state.morph.morphFrom = state.C.surf;
+  state.morph.morphTo = state.C.surf;
+  state.morph.phase = 'hold';
+  state.morph.morphT = 0;
+  rebuildStatic();
+};
+$('morphCycle').onchange = e => {
+  state.morph.enabled = e.target.checked;
+  if (!state.morph.enabled) {
+    state.morph.morphFrom = state.C.surf; state.morph.morphTo = state.C.surf; state.morph.morphT = 0;
+    rebuildStatic();
+  } else {
+    state.morph.morphFrom = state.C.surf;
+    state.morph.morphTo = nextSurf(state.C.surf);
+    state.morph.phase = 'hold';
+    state.morph.holdStart = performance.now();
+  }
+};
+$('morphDirection').onchange = e => {
+  state.morph.direction = e.target.value;
+  if (state.morph.enabled) state.morph.morphTo = nextSurf(state.C.surf);
+};
+$('morphPeriod').oninput = e => { state.morph.periodMs = +e.target.value * 1000; syncLabels(); };
+$('morphDur').oninput = e => { state.morph.durMs = +e.target.value * 1000; syncLabels(); };
+$('resC').oninput = e => { state.C.res = +e.target.value; syncLabels(); if (!isPlaying) rebuildStatic(); };
+$('ampC').oninput = e => { state.C.amp = +e.target.value; syncLabels(); if (!isPlaying) rebuildStatic(); };
+$('resampleC').onclick = () => { regenerateGFFBank(); if (!isPlaying) rebuildStatic(); };
+
+$('sceneType').onchange = e => { state.scene.type = e.target.value; rebuildScene(); };
+$('renderQuality').onchange = e => {
+  state.scene.quality = e.target.value;
+  applyQuality();
+  rebuildScene();
+};
+$('showShadows').onchange = e => {
+  state.scene.shadows = e.target.checked;
+  keyLight.castShadow = state.scene.shadows;
+  if (mesh) mesh.castShadow = true;
+};
+
+$('galaxyBgColor').oninput = e => {
+  state.galaxy.bgColor = e.target.value;
+  if (state.scene.type === 'galaxy') scene.background.set(e.target.value);
+  if (floorFadeMesh && floorFadeMesh.material.uniforms) {
+    floorFadeMesh.material.uniforms.uColor.value.set(e.target.value);
+  }
+};
+$('galaxyInnerColor').oninput = e => { state.galaxy.innerColor = e.target.value; if (state.scene.type === 'galaxy') rebuildGalaxies(); };
+$('galaxyOuterColor').oninput = e => { state.galaxy.outerColor = e.target.value; if (state.scene.type === 'galaxy') rebuildGalaxies(); };
+// onchange (pas oninput) pour les rebuilds lourds → évite le freeze 400ms
+$('galaxyCount').onchange = e => {
+  state.galaxy.count = +e.target.value;
+  syncLabels();
+  if (state.scene.type === 'galaxy') rebuildGalaxies();
+};
+$('galaxyCount').oninput = e => { state.galaxy.count = +e.target.value; syncLabels(); };
+$('galaxyParticles').onchange = e => {
+  state.galaxy.particles = +e.target.value;
+  syncLabels();
+  if (state.scene.type === 'galaxy') rebuildGalaxies();
+};
+$('galaxyParticles').oninput = e => { state.galaxy.particles = +e.target.value; syncLabels(); };
+$('galaxyRadius').onchange = e => {
+  state.galaxy.radius = +e.target.value;
+  syncLabels();
+  if (state.scene.type === 'galaxy') rebuildGalaxies();
+};
+$('galaxyRadius').oninput = e => { state.galaxy.radius = +e.target.value; syncLabels(); };
+$('galaxySpeed').oninput = e => {
+  state.galaxy.speed = +e.target.value;
+  syncLabels();
+  galaxySprites.forEach(g => {
+    if (g.mesh.material.uniforms.uSpeed) g.mesh.material.uniforms.uSpeed.value = state.galaxy.speed;
+  });
+};
+$('particleSize').oninput = e => {
+  state.galaxy.pSize = +e.target.value;
+  syncLabels();
+  galaxySprites.forEach(g => {
+    if (g.mesh.material.uniforms && g.mesh.material.uniforms.uSize) {
+      g.mesh.material.uniforms.uSize.value = state.galaxy.pSize;
+    }
+  });
+};
+
+$('showFloor').onchange = e => { state.floor.enabled = e.target.checked; buildFloor(); };
+$('floorColor').oninput = e => {
+  state.floor.color = e.target.value;
+  if (floorMesh) floorMesh.material.color.set(e.target.value);
+  if (floorReflector && floorReflector.material) {
+    floorReflector.material.color.set(e.target.value);
+  }
+};
+$('floorOpacity').oninput = e => {
+  state.floor.opacity = +e.target.value;
+  if (floorMesh) {
+    const o = state.floor.opacity;
+    floorMesh.material.transparent = o < 0.999;
+    floorMesh.material.opacity = o;
+    floorMesh.material.depthWrite = o > 0.9;
+  }
+  syncLabels();
+};
+$('floorReflect').oninput = e => {
+  state.floor.reflect = +e.target.value;
+  if (floorReflector && floorReflector.material) {
+    floorReflector.material.opacity = state.floor.reflect;
+  }
+  syncLabels();
+};
+$('floorShine').oninput = e => {
+  state.floor.shine = +e.target.value;
+  if (floorMesh) floorMesh.material.roughness = Math.max(0.02, state.floor.shine);
+  syncLabels();
+};
+$('floorMetal').oninput = e => {
+  state.floor.metal = +e.target.value;
+  if (floorMesh) floorMesh.material.metalness = state.floor.metal;
+  syncLabels();
+};
+
+$('showText').onchange = e => { state.text.enabled = e.target.checked; buildTextMesh(); };
+$('textContent').oninput = e => { state.text.content = e.target.value; buildTextMesh(); };
+$('textFont').onchange = e => { state.text.font = e.target.value; buildTextMesh(); };
+$('loadFontBtn').onclick = async () => {
+  const url = $('textFontURL').value.trim();
+  if (!url) return;
+  try {
+    const fontName = 'CustomFont' + Date.now();
+    const fontFace = new FontFace(fontName, `url(${url})`);
+    await fontFace.load();
+    document.fonts.add(fontFace);
+    state.text.font = `'${fontName}', sans-serif`;
+    buildTextMesh();
+  } catch (err) { alert('Erreur de chargement de police : ' + err.message); }
+};
+$('textSize').oninput = e => { state.text.size = +e.target.value; syncLabels(); buildTextMesh(); };
+$('textRelief').oninput = e => {
+  state.text.relief = +e.target.value;
+  textUniforms.uRelief.value = state.text.relief;
+  syncLabels();
+};
+$('textColor').oninput = e => {
+  state.text.color = e.target.value;
+  textUniforms.uTextColor.value.set(e.target.value);
+};
+$('textY').oninput = e => { state.text.y = +e.target.value; syncLabels(); updateTextTransform(); };
+$('textZ').oninput = e => { state.text.z = +e.target.value; syncLabels(); updateTextTransform(); };
+$('textFacingCamera').onchange = e => { state.text.facingCamera = e.target.checked; };
+
+$('material').onchange = e => {
+  state.material = e.target.value;
+  if (mesh) {
+    const mat = makeMaterial();
+    mat.vertexColors = (state.material==='matte');
+    mesh.material.dispose();
+    mesh.material = mat;
+  }
+};
+$('palette').onchange = e => { state.palette = e.target.value; if (!isPlaying) rebuildStatic(); };
+$('env').onchange = e => { state.env = e.target.value; updateEnv(); };
+$('Z').oninput = e => { state.zoomStep = +e.target.value; syncLabels(); applyZoomStep(); };
+$('exposure').oninput = e => {
+  state.render.exposure = +e.target.value;
+  renderer.toneMappingExposure = state.render.exposure;
+  syncLabels();
+};
+$('rough').oninput = e => {
+  state.render.rough = +e.target.value;
+  syncLabels();
+  if (mesh && mesh.material.roughness !== undefined) mesh.material.roughness = state.render.rough;
+};
+$('metal').oninput = e => {
+  state.render.metal = +e.target.value;
+  syncLabels();
+  if (mesh && mesh.material.metalness !== undefined) mesh.material.metalness = state.render.metal;
+};
+$('ior').oninput = e => {
+  state.render.ior = +e.target.value;
+  syncLabels();
+  if (mesh && mesh.material.ior !== undefined) mesh.material.ior = state.render.ior;
+};
+$('trans').oninput = e => {
+  state.render.trans = +e.target.value;
+  syncLabels();
+  if (mesh && mesh.material.transmission !== undefined) mesh.material.transmission = state.render.trans;
+};
+$('thick').oninput = e => {
+  state.render.thick = +e.target.value;
+  syncLabels();
+  if (mesh && mesh.material.thickness !== undefined) mesh.material.thickness = state.render.thick;
+};
+$('rot').onclick = () => {
+  state.autoRot = !state.autoRot;
+  controls.autoRotate = state.autoRot;
+  $('rot').textContent = (state.autoRot ? '⏸' : '▶') + ' Rotation';
+};
+$('resetCam').onclick = () => {
+  if (mesh) {
+    mesh.geometry.computeBoundingBox();
+    const box = mesh.geometry.boundingBox;
+    if (box && !box.isEmpty()) {
+      const center = box.getCenter(new THREE.Vector3());
+      center.y += MESH_BASE_Y;
+      const sz = box.getSize(new THREE.Vector3()).length();
+      controls.target.copy(center);
+      state.baseDist = Math.max(3.5, sz*1.9);
+      state.zoomStep = 6;
+      document.getElementById('Z').value = 6;
+      document.getElementById('vZ').textContent = 6;
+      applyZoomStep();
+    }
+  }
+};
+$('rotSpeed').oninput = e => { state.rotSpeed = +e.target.value; controls.autoRotateSpeed = state.rotSpeed; syncLabels(); };
+reactAmt.oninput = syncLabels;
+ampGain.oninput = syncLabels;
+resGain.oninput = syncLabels;
+agcSlider.oninput = syncLabels;
+smooth.oninput = syncLabels;
+pulseScale.onchange = e => { state.audio.pulse = e.target.checked; };
+
+// Mode cinéma
+const cinemaBtn = $('cinemaBtn');
+function toggleCinema() {
+  const active = document.body.classList.toggle('cinema');
+  cinemaBtn.textContent = active ? '✕ Quitter cinéma' : '▶ Mode cinéma';
+  setTimeout(resize, 380);
+}
+cinemaBtn.onclick = toggleCinema;
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.body.classList.contains('cinema')) toggleCinema();
+});
+
+function applyQuality() {
+  const q = state.scene.quality;
+  let pr = 1, shadowMap = 512;
+  if (q === 'low') { pr = 0.75; shadowMap = 256; }
+  else if (q === 'medium') { pr = Math.min(devicePixelRatio, 1.5); shadowMap = 1024; }
+  else { pr = Math.min(devicePixelRatio, 2); shadowMap = 2048; }
+  renderer.setPixelRatio(pr);
+  keyLight.shadow.mapSize.set(shadowMap, shadowMap);
+  renderer.shadowMap.type = q === 'low' ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
+  keyLight.shadow.needsUpdate = true;
+  galaxySprites.forEach(g => {
+    if (g.mesh.material.uniforms.uPixelRatio) g.mesh.material.uniforms.uPixelRatio.value = pr;
+  });
+  resize();
+}
+function resize() {
+  const r = view.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0) return;
+  renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width / r.height;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+
+// ============================================================
+// BOUCLE
+// ============================================================
+let lastFrame = performance.now();
+function animate(now) {
+  requestAnimationFrame(animate);
+  if (!now) now = performance.now();
+  const dt = Math.min(0.1, (now - lastFrame) / 1000);
+  lastFrame = now;
+  animClock += dt;
+
+  // Caméra collision avec le sol
+  if (state.floor.enabled && camera.position.y < FLOOR_Y + 0.5) {
+    camera.position.y = FLOOR_Y + 0.5;
+  }
+
+  if (skySphere && skySphere.userData.uniforms) {
+    skySphere.userData.uniforms.uTime.value = animClock;
+  }
+  galaxySprites.forEach(g => {
+    if (g.mesh.material.uniforms.uTime) {
+      // Add rotation direction
+      const dir = g.mesh.userData.rotDir || 1;
+      g.mesh.material.uniforms.uTime.value = animClock * dir;
+    }
+  });
+  if (textMesh) textMesh.material.uniforms.uTime.value = animClock;
+  if (textMesh && state.text.facingCamera) {
+    textMesh.lookAt(camera.position.x, textMesh.position.y, camera.position.z);
+  }
+
+  controls.update();
+
+  if (isPlaying) analyzeSpectrum();
+  else {
+    energyLow *= 0.95; energyMid *= 0.95; energyHigh *= 0.95;
+    energyTotal *= 0.95; onsetPulse *= 0.9;
+  }
+  updateMeters();
+
+  updateMorph(now);
+
+  const surfA = state.morph.enabled ? state.morph.morphFrom : state.C.surf;
+  const surfB = state.morph.enabled ? state.morph.morphTo : state.C.surf;
+  const morphT = state.morph.enabled ? state.morph.morphT : 0;
+  const audioActive = isPlaying && (energyLow + energyMid + energyHigh > 0.01);
+  if (isPlaying || (state.morph.enabled && morphT > 0.001)) {
+    rebuildSurface(now, morphT, surfA, surfB, audioActive);
+  }
+  renderer.render(scene, camera);
+}
+
+syncLabels();
+ensureGFFBank();
+rebuildStatic();
+applyQuality();
+rebuildScene();
+resize();
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
